@@ -2,110 +2,70 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>AMKAAI</title>
+  <title>Amkaai AI</title>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="images/favicon.png">
+
   <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-<!-- NAVBAR -->
+<!-- 🔝 Navbar -->
 <header class="navbar">
-  <h2 class="logo">AMKAAI</h2>
+  <div class="logo">AMKAAI</div>
+
   <nav>
-    <a href="#">Home</a>
-    <a href="#">Features</a>
-    <a href="#">Pricing</a>
+    <a data-key="home">Home</a>
+    <a data-key="features">Features</a>
+    <a data-key="pricing">Pricing</a>
   </nav>
-  <button class="btn">Get Started</button>
+
+  <div class="actions">
+    <button class="login" data-key="login">Sign In</button>
+    <button class="signup" data-key="signup">Get Started</button>
+
+    <!-- 🌍 Language -->
+    <select id="language">
+      <option value="en">🇬🇧 EN</option>
+      <option value="fr">🇫🇷 FR</option>
+      <option value="ar">🇸🇦 AR</option>
+      <option value="zh">🇨🇳 CN</option>
+      <option value="es">🇪🇸 ES</option>
+      <option value="it">🇮🇹 IT</option>
+      <option value="de">🇩🇪 DE</option>
+    </select>
+  </div>
 </header>
 
-<!-- HERO -->
+<!-- 🎯 Hero -->
 <section class="hero">
-  <div class="hero-content">
-    <h1>Create Professional Videos with AI</h1>
-    <p>Transform text into amazing videos in seconds using AI.</p>
+  <img src="images/logo.png" class="hero-logo">
 
-    <button class="btn" onclick="openAuth()">Generate Video Now</button>
-    <button class="btn-outline">Watch Demo</button>
-  </div>
+  <h1 data-key="title">Create AI Videos in Seconds</h1>
+  <p data-key="subtitle">Transform your ideas into stunning AI videos instantly</p>
+
+  <button class="cta" data-key="cta">Start Free</button>
 </section>
 
-<!-- STEPS -->
-<section class="steps-section">
-  <h2>Turn Text into Video in Seconds</h2>
-
-  <div class="steps">
-    <div class="step-card">
-      <img src="https://img.icons8.com/color/96/document.png">
-      <p>Write Your Text</p>
-    </div>
-
-    <div class="step-card">
-      <img src="https://img.icons8.com/color/96/magic-wand.png">
-      <p>Generate Video</p>
-    </div>
-
-    <div class="step-card">
-      <img src="https://img.icons8.com/color/96/play.png">
-      <p>Get Your Video</p>
-    </div>
-  </div>
-</section>
-
-<!-- FEATURES -->
+<!-- ⭐ Features -->
 <section class="features">
-  <h2>Why Choose AMKAAI?</h2>
+  <div class="card">
+    <h3 data-key="f1_title">AI Avatars</h3>
+    <p data-key="f1_desc">Create realistic avatars with AI</p>
+  </div>
 
-  <div class="feature-grid">
-    <div class="feature-card">Realistic AI Avatars</div>
-    <div class="feature-card">Multiple Voices</div>
-    <div class="feature-card">Multi Languages</div>
-    <div class="feature-card">Custom Editing</div>
+  <div class="card">
+    <h3 data-key="f2_title">Text to Video</h3>
+    <p data-key="f2_desc">Turn text into powerful videos</p>
+  </div>
+
+  <div class="card">
+    <h3 data-key="f3_title">Voice AI</h3>
+    <p data-key="f3_desc">Generate realistic voices</p>
   </div>
 </section>
-
-<!-- PRICING -->
-<section class="pricing">
-  <h2>Pricing Plans</h2>
-
-  <div class="plans">
-    <div class="plan">
-      <h3>Free</h3>
-      <p>$0</p>
-      <button class="btn">Start</button>
-    </div>
-
-    <div class="plan">
-      <h3>Pro</h3>
-      <p>$59</p>
-      <button class="btn">Start</button>
-    </div>
-
-    <div class="plan premium">
-      <h3>Premium</h3>
-      <p>$129</p>
-      <button class="btn">Subscribe</button>
-    </div>
-  </div>
-</section>
-
-<!-- AUTH MODAL -->
-<div id="authModal" class="modal">
-  <div class="modal-content">
-    <h2>Sign Up</h2>
-
-    <button class="btn">Continue with Google</button>
-    <button class="btn-outline">Continue with Email</button>
-
-    <br><br>
-    <button onclick="closeAuth()">Close</button>
-  </div>
-</div>
-
-<!-- FOOTER -->
-<footer>
-  <p>© 2026 AMKAAI</p>
-</footer>
 
 <script src="script.js"></script>
 
