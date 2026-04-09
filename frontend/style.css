@@ -1,0 +1,77 @@
+body {
+  margin: 0;
+  font-family: Arial;
+  background: #0f172a;
+  color: white;
+}
+
+.app {
+  display: flex;
+  height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 220px;
+  background: #020617;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar button {
+  margin: 10px 0;
+  padding: 10px;
+  background: #1e293b;
+  border: none;
+  color: white;
+  cursor: pointer;
+}
+
+/* Main */
+.main {
+  flex: 1;
+  padding: 30px;
+}
+
+/* Sections */
+.section {
+  display: none;
+}
+
+.section.active {
+  display: block;
+}
+
+/* Prompt */
+textarea {
+  width: 100%;
+  height: 100px;
+  padding: 10px;
+}
+
+/* Button */
+button {
+  background: purple;
+  color: white;
+  padding: 10px;
+  border: none;
+  margin-top: 10px;
+}
+
+/* Image preview */
+#preview {
+  margin-top: 20px;
+  width: 300px;
+}
+
+/* Grid */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 200px);
+  gap: 10px;
+}
+
+.grid img {
+  width: 200px;
+}
