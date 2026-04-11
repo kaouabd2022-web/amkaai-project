@@ -1,20 +1,53 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
   <title>AMKAAI</title>
   <link rel="stylesheet" href="style.css">
 </head>
+<body>
 
-<body class="center">
+  <!-- 🌍 LANGUAGES -->
+  <div class="lang-switcher">
+    <img src="https://flagcdn.com/w40/gb.png" onclick="setLang('en')">
+    <img src="https://flagcdn.com/w40/fr.png" onclick="setLang('fr')">
+    <img src="https://flagcdn.com/w40/sa.png" onclick="setLang('ar')">
+    <img src="https://flagcdn.com/w40/es.png" onclick="setLang('es')">
+    <img src="https://flagcdn.com/w40/it.png" onclick="setLang('it')">
+    <img src="https://flagcdn.com/w40/de.png" onclick="setLang('de')">
+    <img src="https://flagcdn.com/w40/cn.png" onclick="setLang('zh')">
+  </div>
 
-<h1>AMKAAI</h1>
+  <div class="overlay"></div>
 
-<input id="email" placeholder="Email">
-<input id="password" type="password" placeholder="Password">
+  <div class="container">
+    <h1 class="logo" id="title">AMKAAI</h1>
+    <p class="subtitle" id="subtitle">Next Generation AI Creator</p>
 
-<button onclick="login()">Login</button>
-<button onclick="register()">Register</button>
+    <!-- IMAGE -->
+    <div class="box">
+      <h2 id="imgTitle">🖼️ AI Image</h2>
+      <input type="text" id="prompt" placeholder="Describe your image...">
+      <button onclick="generateImage()" id="imgBtn">Generate Image</button>
+      <img id="result">
+    </div>
 
-<script src="script.js"></script>
+    <!-- VIDEO -->
+    <div class="box">
+      <h2 id="vidTitle">🎬 AI Video</h2>
+      <input type="text" id="videoPrompt" placeholder="Describe your video...">
+      <button onclick="generateVideo()" id="vidBtn">Generate Video</button>
+      <video id="videoResult" controls></video>
+    </div>
+  </div>
+
+  <div class="cards">
+    <div class="card">⚡ Fast AI</div>
+    <div class="card">🎨 Creative</div>
+    <div class="card">🧠 Smart</div>
+    <div class="card">🚀 Future Tech</div>
+  </div>
+
+  <script src="script.js"></script>
 </body>
 </html>
