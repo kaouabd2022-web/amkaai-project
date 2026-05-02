@@ -1,0 +1,224 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+//////////////////////////////////////////////////
+// 👤 USER
+//////////////////////////////////////////////////
+
+model User {
+  id             String   @id @default(cuid())
+  clerkId        String   @unique
+  email          String?
+  plan           String   @default("FREE")
+  credits        Int      @default(10)
+
+  // 💳 Stripe
+  customerId     String?  @unique
+  subscriptionId String?  @unique
+
+  createdAt      DateTime @default(now())
+
+  // 🔗 Relations
+  images Image[]
+  videos Video[]
+  videoJobs VideoJob[]
+  voices Voice[]
+  payments Payment[]
+  usage Usage[]
+  abandonedCheckouts AbandonedCheckout[]
+  manualPayments ManualPayment[]
+  notifications Notification[]
+}
+
+//////////////////////////////////////////////////
+// 💳 PAYMENT
+//////////////////////////////////////////////////
+
+model Payment {
+  id        String   @id @default(cuid())
+  amount    Float
+  currency  String
+  userId    String
+  stripeId  String?  @unique
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [clerkId])
+
+  @@index([userId])
+}
+
+//////////////////////////////////////////////////
+// 📊 USAGE
+//////////////////////////////////////////////////
+
+model Usage {
+  id        String   @id @default(cuid())
+  type      String
+  cost      Int
+  userId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [clerkId])
+
+  @@index([userId])
+}
+
+//////////////////////////////////////////////////
+// 🖼 IMAGE
+//////////////////////////////////////////////////
+
+model Image {
+  id        String   @id @default(cuid())
+  url       String
+  prompt    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [clerkId])
+}
+
+//////////////////////////////////////////////////
+// 🎬 VIDEO (FINAL OUTPUT)
+//////////////////////////////////////////////////
+
+model Video {
+  id        String   @id @default(cuid())
+  url       String?
+  prompt    String
+  status    String   @default("pending")
+  userId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [clerkId])
+}
+
+//////////////////////////////////////////////////
+// 🚀 VIDEO JOB SYSTEM (QUEUE ENGINE)
+//////////////////////////////////////////////////
+
+model VideoJob {
+  id        String   @id @default(cuid())
+
+  userId    String
+  prompt    String?
+
+  status    String   @default("pending")
+  // pending | processing | completed | failed
+
+  // 🔥 PRIORITY SYSTEM
+  priority  Int      @default(0)
+  // 0 = FREE
+  // 1 = PRO
+  // 2 = VIP
+
+  resultUrl String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [clerkId])
+
+  @@index([userId])
+  @@index([status])
+  @@index([priority])
+}
+
+//////////////////////////////////////////////////
+// 🎙 VOICE
+//////////////////////////////////////////////////
+
+model Voice {
+  id        String   @id @default(cuid())
+  url       String
+  text      String
+  userId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [clerkId])
+}
+
+//////////////////////////////////////////////////
+// ⚠️ ABANDONED CHECKOUT
+//////////////////////////////////////////////////
+
+model AbandonedCheckout {
+  id              String   @id @default(cuid())
+  userId          String
+  email           String
+  checkoutUrl     String
+  stripeSessionId String   @unique
+  recovered       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [clerkId])
+}
+
+//////////////////////////////////////////////////
+// 🔔 NOTIFICATIONS
+//////////////////////////////////////////////////
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [clerkId])
+
+  @@index([userId])
+}
+
+//////////////////////////////////////////////////
+// 💳 MANUAL PAYMENT (FIXED)
+//////////////////////////////////////////////////
+
+model ManualPayment {
+  id        String   @id @default(cuid())
+
+  userId    String
+  plan      String
+
+  method    String
+  amount    Float
+  currency  String
+
+  // 📸 Screenshot FIXED
+  screenshotUrl String?
+
+  // 🔐 Anti-fraud
+  rip       String?   @unique
+  transactionId String?   @unique
+  imageHash     String?   @unique
+
+  ipAddress     String?
+  device        String?
+
+  aiScore       Float?
+  aiRawText     String?
+  verified      Boolean   @default(false)
+
+  status        String   @default("PENDING")
+  riskLevel     String?
+
+  approvedBy    String?
+  rejectedBy    String?
+  rejectReason  String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [clerkId])
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
