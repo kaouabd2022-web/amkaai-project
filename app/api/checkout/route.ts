@@ -3,18 +3,16 @@ import Stripe from "stripe";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2026-04-22.dahlia",
-});
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 export async function POST() {
   try {
-    const { userId } = await await auth();
+    const { userId } = await auth();
+
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // 🧑‍💻 user
     const user = await db.user.findUnique({
       where: { clerkId: userId },
     });
@@ -23,7 +21,6 @@ export async function POST() {
       return NextResponse.json({ error: "No email" }, { status: 400 });
     }
 
-    // 💳 إنشاء session
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer_email: user.email,
@@ -35,15 +32,14 @@ export async function POST() {
         },
       ],
 
-      success_url: "http://localhost:3000/dashboard",
-      cancel_url: "http://localhost:3000/ai-image",
+      success_url: "https://ai-video-site.onrender.com/dashboard",
+      cancel_url: "https://ai-video-site.onrender.com/ai-image",
 
       metadata: {
         userId,
       },
     });
 
-    // 💾 حفظ abandoned checkout
     await db.abandonedCheckout.create({
       data: {
         userId,
