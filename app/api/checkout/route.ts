@@ -3,7 +3,7 @@ import Stripe from "stripe";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 
-// ✅ لا تستعمل apiVersion الغلط
+// ✅ حذف apiVersion الغلط
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 export async function POST() {
@@ -24,13 +24,13 @@ export async function POST() {
       return NextResponse.json({ error: "No email" }, { status: 400 });
     }
 
-    // ✅ تحقق من ENV (مهم جدا)
-    if (!process.env.STRIPE_SECRET_KEY) {
-      throw new Error("Missing STRIPE_SECRET_KEY");
-    }
-
+    // ❗ تحقق من ENV قبل Stripe
     if (!process.env.STRIPE_PRICE_ID) {
       throw new Error("Missing STRIPE_PRICE_ID");
+    }
+
+    if (!process.env.STRIPE_SECRET_KEY) {
+      throw new Error("Missing STRIPE_SECRET_KEY");
     }
 
     // 💳 إنشاء session
@@ -45,7 +45,7 @@ export async function POST() {
         },
       ],
 
-      // ✅ لازم يكون رابط الموقع وليس localhost
+      // ✅ استبدال localhost برابط الموقع
       success_url: "https://ai-video-site.onrender.com/dashboard",
       cancel_url: "https://ai-video-site.onrender.com/ai-image",
 
@@ -54,7 +54,7 @@ export async function POST() {
       },
     });
 
-    // 💾 حفظ (اختياري، لا يكسر السيرفر)
+    // 💾 حفظ العملية (اختياري)
     try {
       await db.abandonedCheckout.create({
         data: {
