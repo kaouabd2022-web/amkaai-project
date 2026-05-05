@@ -3,7 +3,12 @@ import Stripe from "stripe";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+// ❗ تأكد من وجود المفتاح قبل إنشاء Stripe
+if (!process.env.STRIPE_SECRET_KEY) {
+  throw new Error("Missing STRIPE_SECRET_KEY");
+}
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 export async function POST() {
   try {
@@ -13,11 +18,17 @@ export async function POST() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    console.log("USER_ID:", userId);
+
     const user = await db.user.findUnique({
       where: { clerkId: userId },
     });
 
-    if (!user?.email) {
+    if (!user) {
+      return NextResponse.json({ error: "User not found in DB" }, { status: 404 });
+    }
+
+    if (!user.email) {
       return NextResponse.json({ error: "No email found" }, { status: 400 });
     }
 
@@ -31,6 +42,8 @@ export async function POST() {
     if (!baseUrl) {
       return NextResponse.json({ error: "Missing NEXT_PUBLIC_URL" }, { status: 500 });
     }
+
+    console.log("PRICE_ID:", priceId);
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -51,11 +64,15 @@ export async function POST() {
       },
     });
 
-    // ⚠️ حماية session.url
-    if (!session.url) {
-      throw new Error("Stripe session URL missing");
+    if (!session || !session.url) {
+      console.error("Stripe session error:", session);
+      return NextResponse.json(
+        { error: "Stripe session creation failed" },
+        { status: 500 }
+      );
     }
 
+    // DB not critical (لا يطيح السيرفر إذا فشل)
     try {
       await db.abandonedCheckout.create({
         data: {
@@ -72,10 +89,12 @@ export async function POST() {
     return NextResponse.json({ url: session.url });
 
   } catch (error: any) {
-    console.error("🔥 Checkout error FULL:", error);
+    console.error("🔥 FULL CHECKOUT ERROR:", error);
 
     return NextResponse.json(
-      { error: error?.message || "Internal Server Error" },
+      {
+        error: error?.message || "Internal Server Error",
+      },
       { status: 500 }
     );
   }
