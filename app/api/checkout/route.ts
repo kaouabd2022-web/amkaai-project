@@ -3,78 +3,79 @@ import Stripe from "stripe";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 
-// ✅ حذف apiVersion الغلط
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 export async function POST() {
   try {
-    // ✅ تصحيح await
     const { userId } = await auth();
 
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // 🧑‍💻 جلب المستخدم
     const user = await db.user.findUnique({
       where: { clerkId: userId },
     });
 
-    if (!user || !user.email) {
-      return NextResponse.json({ error: "No email" }, { status: 400 });
+    if (!user?.email) {
+      return NextResponse.json({ error: "No email found" }, { status: 400 });
     }
 
-    // ❗ تحقق من ENV قبل Stripe
-    if (!process.env.STRIPE_PRICE_ID) {
-      throw new Error("Missing STRIPE_PRICE_ID");
+    const priceId = process.env.STRIPE_PRICE_ID;
+    const baseUrl = process.env.NEXT_PUBLIC_URL;
+
+    if (!priceId) {
+      return NextResponse.json({ error: "Missing STRIPE_PRICE_ID" }, { status: 500 });
     }
 
-    if (!process.env.STRIPE_SECRET_KEY) {
-      throw new Error("Missing STRIPE_SECRET_KEY");
+    if (!baseUrl) {
+      return NextResponse.json({ error: "Missing NEXT_PUBLIC_URL" }, { status: 500 });
     }
 
-    // 💳 إنشاء session
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer_email: user.email,
 
       line_items: [
         {
-          price: process.env.STRIPE_PRICE_ID,
+          price: priceId,
           quantity: 1,
         },
       ],
 
-      // ✅ استبدال localhost برابط الموقع
-      success_url: "https://ai-video-site.onrender.com/dashboard",
-      cancel_url: "https://ai-video-site.onrender.com/ai-image",
+      success_url: `${baseUrl}/dashboard`,
+      cancel_url: `${baseUrl}/ai-image`,
 
       metadata: {
         userId,
       },
     });
 
-    // 💾 حفظ العملية (اختياري)
+    // ⚠️ حماية session.url
+    if (!session.url) {
+      throw new Error("Stripe session URL missing");
+    }
+
     try {
       await db.abandonedCheckout.create({
         data: {
           userId,
           email: user.email,
-          checkoutUrl: session.url!,
+          checkoutUrl: session.url,
           stripeSessionId: session.id,
         },
       });
     } catch (dbError) {
-      console.log("DB error (ignored):", dbError);
+      console.log("DB error ignored:", dbError);
     }
 
     return NextResponse.json({ url: session.url });
 
   } catch (error: any) {
-    console.error("🔥 Checkout error:", error.message || error);
+    console.error("🔥 Checkout error FULL:", error);
 
     return NextResponse.json(
-      { error: error.message || "Something went wrong" },
+      { error: error?.message || "Internal Server Error" },
       { status: 500 }
     );
   }
