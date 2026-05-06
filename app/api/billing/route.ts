@@ -3,9 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { Paddle } from "@paddle/paddle-node-sdk";
 
-const paddle = new Paddle({
-  apiKey: process.env.PADDLE_API_KEY!,
-});
+const paddle = new Paddle(process.env.PADDLE_API_KEY!);
 
 export async function POST() {
   try {
@@ -36,20 +34,21 @@ export async function POST() {
       );
     }
 
-    // ✅ إنشاء رابط صفحة إدارة الاشتراك (Customer Portal)
-    const portalSession = await paddle.customers.createPortalSession(
-      user.customerId,
-      {
-        returnUrl: `${process.env.NEXT_PUBLIC_URL}/dashboard`,
-      }
-    );
+    // =========================
+    // 🔥 Paddle Billing Portal
+    // =========================
+
+    const portalSession = await paddle.billingPortal.sessions.create({
+      customer_id: user.customerId,
+      return_url: `${process.env.NEXT_PUBLIC_URL}/dashboard`,
+    });
 
     return NextResponse.json({
       url: portalSession.url,
     });
 
   } catch (error) {
-    console.error("Paddle billing portal error:", error);
+    console.error("❌ Paddle billing portal error:", error);
 
     return NextResponse.json(
       { error: "Internal Server Error" },
