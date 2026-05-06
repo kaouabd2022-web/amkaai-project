@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import Stripe from "stripe";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
+import { Paddle } from "@paddle/paddle-node-sdk";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2026-04-22.dahlia",
+const paddle = new Paddle({
+  apiKey: process.env.PADDLE_API_KEY!,
 });
 
 export async function POST() {
@@ -31,22 +31,25 @@ export async function POST() {
 
     if (!user.customerId) {
       return NextResponse.json(
-        { error: "No Stripe customer found" },
+        { error: "No Paddle customer found" },
         { status: 400 }
       );
     }
 
-    const portalSession = await stripe.billingPortal.sessions.create({
-      customer: user.customerId,
-      return_url: `${process.env.NEXT_PUBLIC_URL}/dashboard`,
-    });
+    // ✅ إنشاء رابط صفحة إدارة الاشتراك (Customer Portal)
+    const portalSession = await paddle.customers.createPortalSession(
+      user.customerId,
+      {
+        returnUrl: `${process.env.NEXT_PUBLIC_URL}/dashboard`,
+      }
+    );
 
     return NextResponse.json({
       url: portalSession.url,
     });
 
   } catch (error) {
-    console.error("Billing portal error:", error);
+    console.error("Paddle billing portal error:", error);
 
     return NextResponse.json(
       { error: "Internal Server Error" },

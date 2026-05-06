@@ -4,15 +4,18 @@ import { headers } from "next/headers";
 import { db } from "@/lib/db";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: "2026-04-22.dahlia",
+  apiVersion: "2024-06-20",
 });
 
+// ❗ مهم لـ Stripe
+export const runtime = "nodejs";
+
 export async function POST(req: Request) {
-  console.log("🔥 WEBHOOK HIT");
+  console.log("🔥 STRIPE WEBHOOK HIT");
 
   const body = await req.text();
 
-  const headersList = await headers();
+  const headersList = headers();
   const signature = headersList.get("stripe-signature");
 
   if (!signature) {
@@ -41,13 +44,14 @@ export async function POST(req: Request) {
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
 
-      const userId = session.metadata?.userId;
-      const email = session.customer_details?.email;
+      const userId = session.metadata?.userId || null;
+      const email = session.customer_details?.email || null;
       const customerId = session.customer as string;
       const subscriptionId = session.subscription as string;
 
       console.log("💰 Payment success");
 
+      // 🔍 جلب المنتج
       const items = await stripe.checkout.sessions.listLineItems(
         session.id,
         { limit: 1 }
@@ -68,7 +72,7 @@ export async function POST(req: Request) {
         credits = 300;
       }
 
-      // 👤 update user
+      // 👤 تحديث المستخدم
       if (userId) {
         await db.user.update({
           where: { clerkId: userId },
@@ -91,10 +95,12 @@ export async function POST(req: Request) {
         });
       }
 
-      // 💾 payment record
+      // 💾 تسجيل الدفع
       await db.payment.create({
         data: {
-          amount: session.amount_total ? session.amount_total / 100 : 0,
+          amount: session.amount_total
+            ? session.amount_total / 100
+            : 0,
           currency: session.currency || "usd",
           userId: userId || email || "unknown",
           stripeId: session.id,
@@ -134,10 +140,8 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ received: true });
-
   } catch (error) {
     console.error("❌ Webhook handler error:", error);
-
     return new NextResponse("Server Error", { status: 500 });
   }
 }

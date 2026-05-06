@@ -1,11 +1,16 @@
 import { PrismaClient } from "@prisma/client";
 
-const globalForPrisma = global as unknown as {
-  prisma: PrismaClient;
-};
+declare global {
+  // 🧠 نخلي Prisma global باش ما يتكرر في dev
+  var prisma: PrismaClient | undefined;
+}
 
 export const db =
-  globalForPrisma.prisma ||
-  new PrismaClient();
+  global.prisma ||
+  new PrismaClient({
+    log: ["query", "error", "warn"], // useful أثناء التطوير
+  });
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = db;
+if (process.env.NODE_ENV !== "production") {
+  global.prisma = db;
+}

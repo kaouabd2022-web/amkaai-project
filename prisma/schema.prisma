@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 //////////////////////////////////////////////////
@@ -14,7 +14,7 @@ datasource db {
 model User {
   id             String   @id @default(cuid())
   clerkId        String   @unique
-  email          String?
+  email          String?  @unique
   plan           String   @default("FREE")
   credits        Int      @default(10)
 
@@ -84,7 +84,7 @@ model Image {
 }
 
 //////////////////////////////////////////////////
-// 🎬 VIDEO (FINAL OUTPUT)
+// 🎬 VIDEO
 //////////////////////////////////////////////////
 
 model Video {
@@ -99,7 +99,7 @@ model Video {
 }
 
 //////////////////////////////////////////////////
-// 🚀 VIDEO JOB SYSTEM (QUEUE ENGINE)
+// 🚀 VIDEO JOB
 //////////////////////////////////////////////////
 
 model VideoJob {
@@ -109,13 +109,8 @@ model VideoJob {
   prompt    String?
 
   status    String   @default("pending")
-  // pending | processing | completed | failed
 
-  // 🔥 PRIORITY SYSTEM
   priority  Int      @default(0)
-  // 0 = FREE
-  // 1 = PRO
-  // 2 = VIP
 
   resultUrl String?
 
@@ -161,7 +156,7 @@ model AbandonedCheckout {
 }
 
 //////////////////////////////////////////////////
-// 🔔 NOTIFICATIONS
+// 🔔 NOTIFICATION
 //////////////////////////////////////////////////
 
 model Notification {
@@ -178,7 +173,7 @@ model Notification {
 }
 
 //////////////////////////////////////////////////
-// 💳 MANUAL PAYMENT (FIXED)
+// 💳 MANUAL PAYMENT (IMPROVED)
 //////////////////////////////////////////////////
 
 model ManualPayment {
@@ -189,15 +184,14 @@ model ManualPayment {
 
   method    String
   amount    Float
-  currency  String
+  currency  String   @default("USD")
 
-  // 📸 Screenshot FIXED
   screenshotUrl String?
 
-  // 🔐 Anti-fraud
-  rip       String?   @unique
-  transactionId String?   @unique
-  imageHash     String?   @unique
+  // 🔐 Anti-fraud (⚠️ removed unique for safety)
+  rip           String?
+  transactionId String?
+  imageHash     String?
 
   ipAddress     String?
   device        String?
