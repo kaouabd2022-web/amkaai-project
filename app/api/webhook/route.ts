@@ -1,86 +1,59 @@
 import { NextResponse } from "next/server";
-import Stripe from "stripe";
-import { headers } from "next/headers";
 import { db } from "@/lib/db";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: "2024-06-20",
-});
-
-// ❗ مهم لـ Stripe
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
-  console.log("🔥 STRIPE WEBHOOK HIT");
-
-  const body = await req.text();
-
-  const headersList = headers();
-  const signature = headersList.get("stripe-signature");
-
-  if (!signature) {
-    return new NextResponse("Missing signature", { status: 400 });
-  }
-
-  let event: Stripe.Event;
+  console.log("🔥 PADDLE WEBHOOK HIT");
 
   try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      signature,
-      process.env.STRIPE_WEBHOOK_SECRET as string
-    );
-  } catch (err: any) {
-    console.error("❌ Signature verification failed:", err.message);
-    return new NextResponse("Webhook Error", { status: 400 });
-  }
+    const event = await req.json();
 
-  console.log("📦 Event:", event.type);
+    console.log("📦 Event Type:", event.event_type);
 
-  try {
-    // =============================
-    // 💰 CHECKOUT SUCCESS
-    // =============================
-    if (event.type === "checkout.session.completed") {
-      const session = event.data.object as Stripe.Checkout.Session;
+    // =========================
+    // 💰 PAYMENT COMPLETED
+    // =========================
+    if (event.event_type === "transaction.completed") {
+      const data = event.data;
 
-      const userId = session.metadata?.userId || null;
-      const email = session.customer_details?.email || null;
-      const customerId = session.customer as string;
-      const subscriptionId = session.subscription as string;
+      const email = data?.customer?.email;
+      const userId = data?.custom_data?.userId || null;
 
-      console.log("💰 Payment success");
+      const productId = data?.items?.[0]?.product?.id;
+      const transactionId = data?.id;
+      const currency = data?.currency || "USD";
+      const amount = data?.details?.totals?.grand_total
+        ? Number(data.details.totals.grand_total) / 100
+        : 0;
 
-      // 🔍 جلب المنتج
-      const items = await stripe.checkout.sessions.listLineItems(
-        session.id,
-        { limit: 1 }
-      );
+      console.log("💰 Payment successful");
 
-      const priceId = items.data[0]?.price?.id;
-
+      // =========================
+      // 🎯 PLAN LOGIC
+      // =========================
       let plan: "FREE" | "PRO" | "PREMIUM" = "FREE";
       let credits = 10;
 
-      if (priceId === process.env.STRIPE_PRICE_PRO) {
+      if (productId === process.env.PADDLE_PRODUCT_PRO) {
         plan = "PRO";
         credits = 100;
       }
 
-      if (priceId === process.env.STRIPE_PRICE_PREMIUM) {
+      if (productId === process.env.PADDLE_PRODUCT_PREMIUM) {
         plan = "PREMIUM";
         credits = 300;
       }
 
-      // 👤 تحديث المستخدم
+      // =========================
+      // 👤 UPDATE USER
+      // =========================
       if (userId) {
         await db.user.update({
           where: { clerkId: userId },
           data: {
             plan,
             credits,
-            customerId,
-            subscriptionId,
           },
         });
       } else if (email) {
@@ -89,59 +62,96 @@ export async function POST(req: Request) {
           data: {
             plan,
             credits,
-            customerId,
-            subscriptionId,
           },
         });
       }
 
-      // 💾 تسجيل الدفع
+      // =========================
+      // 💾 SAVE PAYMENT RECORD
+      // =========================
       await db.payment.create({
         data: {
-          amount: session.amount_total
-            ? session.amount_total / 100
-            : 0,
-          currency: session.currency || "usd",
+          amount,
+          currency,
           userId: userId || email || "unknown",
-          stripeId: session.id,
-        },
-      });
-
-      // 🔥 recover abandoned checkout
-      await db.abandonedCheckout.updateMany({
-        where: {
-          stripeSessionId: session.id,
-        },
-        data: {
-          recovered: true,
+          stripeId: transactionId, // نحتفظ بالاسم القديم في DB إن لم تغيّره
         },
       });
 
       console.log(`✅ User upgraded to ${plan}`);
     }
 
-    // =============================
+    // =========================
     // ❌ SUBSCRIPTION CANCELLED
-    // =============================
-    if (event.type === "customer.subscription.deleted") {
-      const subscription = event.data.object as Stripe.Subscription;
-
-      const customerId = subscription.customer as string;
-
-      await db.user.updateMany({
-        where: { customerId },
-        data: {
-          plan: "FREE",
-          subscriptionId: null,
-        },
-      });
+    // =========================
+    if (
+      event.event_type === "subscription.canceled" ||
+      event.event_type === "subscription.cancelled"
+    ) {
+      const email = event?.data?.customer?.email;
+      const userId = event?.data?.custom_data?.userId;
 
       console.log("❌ Subscription cancelled");
+
+      if (userId) {
+        await db.user.update({
+          where: { clerkId: userId },
+          data: {
+            plan: "FREE",
+            credits: 10,
+          },
+        });
+      } else if (email) {
+        await db.user.updateMany({
+          where: { email },
+          data: {
+            plan: "FREE",
+            credits: 10,
+          },
+        });
+      }
+    }
+
+    // =========================
+    // 🔁 SUBSCRIPTION UPDATED
+    // =========================
+    if (event.event_type === "subscription.updated") {
+      const data = event.data;
+      const email = data?.customer?.email;
+
+      console.log("🔄 Subscription updated");
+
+      if (email) {
+        await db.user.updateMany({
+          where: { email },
+          data: {
+            plan: "PRO",
+          },
+        });
+      }
+    }
+
+    // =========================
+    // 🚀 TRIAL / ACTIVATION (optional)
+    // =========================
+    if (event.event_type === "subscription.created") {
+      const email = event?.data?.customer?.email;
+
+      console.log("🆕 Subscription created");
+
+      if (email) {
+        await db.user.updateMany({
+          where: { email },
+          data: {
+            plan: "PRO",
+          },
+        });
+      }
     }
 
     return NextResponse.json({ received: true });
   } catch (error) {
-    console.error("❌ Webhook handler error:", error);
-    return new NextResponse("Server Error", { status: 500 });
+    console.error("❌ Paddle webhook error:", error);
+    return new NextResponse("Webhook Error", { status: 500 });
   }
 }
