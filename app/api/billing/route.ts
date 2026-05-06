@@ -38,10 +38,13 @@ export async function POST() {
     // 🔥 Paddle Billing Portal
     // =========================
 
-    const portalSession = await paddle.billingPortal.sessions.create({
-      customer_id: user.customerId,
-      return_url: `${process.env.NEXT_PUBLIC_URL}/dashboard`,
-    });
+    import { NextResponse } from "next/server";
+
+export async function GET() {
+  return NextResponse.json({
+    url: `${process.env.NEXT_PUBLIC_URL}/dashboard`,
+  });
+}
 
     return NextResponse.json({
       url: portalSession.url,
