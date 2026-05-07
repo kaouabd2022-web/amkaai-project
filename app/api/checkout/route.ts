@@ -103,7 +103,7 @@ export async function POST() {
           userId,
           email: user.email,
           checkoutUrl: transaction.checkout.url,
-          stripeSessionId: transaction.id, // نحتفظ به كـ reference فقط
+          paddleTransactionId: transaction.id, // نحتفظ به كـ reference فقط
         },
       });
     } catch (dbError) {

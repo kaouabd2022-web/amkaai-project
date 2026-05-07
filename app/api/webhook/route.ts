@@ -74,7 +74,7 @@ export async function POST(req: Request) {
           amount,
           currency,
           userId: userId || email || "unknown",
-          stripeId: transactionId, // نحتفظ بالاسم القديم في DB إن لم تغيّره
+          paddleId: transactionId, // نحتفظ بالاسم القديم في DB إن لم تغيّره
         },
       });
 
