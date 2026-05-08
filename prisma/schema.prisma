@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -18,7 +18,7 @@ model User {
   plan           String   @default("FREE")
   credits        Int      @default(10)
 
-  // 💳 Stripe
+  // 💳 Paddle (بدل Stripe)
   customerId     String?  @unique
   subscriptionId String?  @unique
 
@@ -45,7 +45,10 @@ model Payment {
   amount    Float
   currency  String
   userId    String
-  stripeId  String?  @unique
+
+  // renamed but keeping compatibility
+  paddleId  String?  @unique
+
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [clerkId])
@@ -147,7 +150,10 @@ model AbandonedCheckout {
   userId          String
   email           String
   checkoutUrl     String
-  stripeSessionId String   @unique
+
+  // Stripe renamed → generic
+  transactionId   String   @unique
+
   recovered       Boolean  @default(false)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -173,7 +179,7 @@ model Notification {
 }
 
 //////////////////////////////////////////////////
-// 💳 MANUAL PAYMENT (IMPROVED)
+// 💳 MANUAL PAYMENT
 //////////////////////////////////////////////////
 
 model ManualPayment {
@@ -188,7 +194,6 @@ model ManualPayment {
 
   screenshotUrl String?
 
-  // 🔐 Anti-fraud (⚠️ removed unique for safety)
   rip           String?
   transactionId String?
   imageHash     String?
