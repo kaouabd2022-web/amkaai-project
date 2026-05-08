@@ -18,13 +18,11 @@ model User {
   plan           String   @default("FREE")
   credits        Int      @default(10)
 
-  // 💳 Paddle (بدل Stripe)
   customerId     String?  @unique
   subscriptionId String?  @unique
 
   createdAt      DateTime @default(now())
 
-  // 🔗 Relations
   images Image[]
   videos Video[]
   videoJobs VideoJob[]
@@ -45,10 +43,7 @@ model Payment {
   amount    Float
   currency  String
   userId    String
-
-  // renamed but keeping compatibility
   paddleId  String?  @unique
-
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [clerkId])
@@ -107,16 +102,11 @@ model Video {
 
 model VideoJob {
   id        String   @id @default(cuid())
-
   userId    String
   prompt    String?
-
   status    String   @default("pending")
-
   priority  Int      @default(0)
-
   resultUrl String?
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -146,17 +136,16 @@ model Voice {
 //////////////////////////////////////////////////
 
 model AbandonedCheckout {
-  id              String   @id @default(cuid())
-  userId          String
-  email           String
-  checkoutUrl     String
+  id            String   @id @default(cuid())
+  userId        String
+  email         String
+  checkoutUrl   String
 
-  // Stripe renamed → generic
-  transactionId   String   @unique
+  transactionId String   @unique
 
-  recovered       Boolean  @default(false)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  recovered     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [clerkId])
 }
@@ -187,7 +176,6 @@ model ManualPayment {
 
   userId    String
   plan      String
-
   method    String
   amount    Float
   currency  String   @default("USD")

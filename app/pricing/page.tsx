@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 
+type Color = "green" | "blue";
+
 export default function PricingPage() {
   const [selectedPlan, setSelectedPlan] = useState<"pro" | "premium" | null>(null);
   const [paymentInfo, setPaymentInfo] = useState({ rip: "", usdt: "" });
@@ -112,7 +114,6 @@ export default function PricingPage() {
 
       {selectedPlan && (
         <Modal>
-
           <h2 className="text-xl font-bold text-center mb-2">
             Complete Payment
           </h2>
@@ -121,7 +122,6 @@ export default function PricingPage() {
             {priceText}
           </p>
 
-          {/* PADDLE */}
           <button
             onClick={() => goToCheckout(selectedPlan)}
             disabled={loadingCheckout}
@@ -164,73 +164,6 @@ export default function PricingPage() {
 
           </div>
 
-          <div className="mt-4 bg-white/5 p-4 rounded-xl border border-white/10">
-            <p className="text-sm mb-2 text-center">
-              📸 Upload Screenshot
-            </p>
-
-            <input
-              type="file"
-              accept="image/*"
-              disabled={!method || uploading}
-              className="text-xs mb-3 w-full"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (!file || !method) return;
-
-                setUploading(true);
-
-                try {
-                  const formData = new FormData();
-                  formData.append("file", file);
-
-                  const uploadRes = await fetch("/api/upload", {
-                    method: "POST",
-                    body: formData,
-                  });
-
-                  const uploadData = await uploadRes.json();
-
-                  await fetch("/api/upload-payment", {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                      plan: selectedPlan.toUpperCase(),
-                      method,
-                      amount: selectedPlan === "pro" ? 15 : 25,
-                      screenshotUrl: uploadData.url,
-                    }),
-                  });
-
-                  window.location.href = "/billing/pending";
-
-                } catch {
-                  alert("❌ Upload failed");
-                }
-
-                setUploading(false);
-              }}
-            />
-
-            {uploading && (
-              <p className="text-xs text-yellow-400 text-center animate-pulse">
-                Uploading proof...
-              </p>
-            )}
-          </div>
-
-          <button
-            onClick={() => {
-              setSelectedPlan(null);
-              setMethod(null);
-            }}
-            className="mt-4 text-gray-400 w-full"
-          >
-            Cancel
-          </button>
-
         </Modal>
       )}
     </main>
@@ -239,8 +172,24 @@ export default function PricingPage() {
 
 /* ================= COMPONENTS ================= */
 
-function PaymentBox({ active, onClick, title, value, copied, onCopy, color }: any) {
-  const styles = {
+function PaymentBox({
+  active,
+  onClick,
+  title,
+  value,
+  copied,
+  onCopy,
+  color,
+}: {
+  active: boolean;
+  onClick: () => void;
+  title: string;
+  value: string;
+  copied: boolean;
+  onCopy: (e: any) => void;
+  color: Color;
+}) {
+  const styles: Record<Color, string> = {
     green: active ? "border-green-500 bg-green-500/20" : "border-white/10",
     blue: active ? "border-blue-500 bg-blue-500/20" : "border-white/10",
   };
@@ -251,13 +200,6 @@ function PaymentBox({ active, onClick, title, value, copied, onCopy, color }: an
       className={`p-4 rounded-xl text-center cursor-pointer border transition ${styles[color]}`}
     >
       <p className="text-sm mb-2 font-semibold">{title}</p>
-
-      {value && (
-        <img
-          src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${value}`}
-          className="mx-auto mb-3 rounded"
-        />
-      )}
 
       <p className="text-xs break-all mb-3 text-gray-300">{value}</p>
 

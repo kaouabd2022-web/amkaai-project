@@ -1,17 +1,16 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-
-// Paddle SDK (Billing v2)
 import { Paddle } from "@paddle/paddle-node-sdk";
 
+// =========================
+// Paddle Init
+// =========================
 if (!process.env.PADDLE_API_KEY) {
   throw new Error("Missing PADDLE_API_KEY");
 }
 
-const paddle = new Paddle({
-  apiKey: process.env.PADDLE_API_KEY,
-});
+const paddle = new Paddle(process.env.PADDLE_API_KEY!);
 
 export async function POST() {
   try {
@@ -23,8 +22,6 @@ export async function POST() {
         { status: 401 }
       );
     }
-
-    console.log("USER_ID:", userId);
 
     const user = await db.user.findUnique({
       where: { clerkId: userId },
@@ -40,6 +37,13 @@ export async function POST() {
     if (!user.email) {
       return NextResponse.json(
         { error: "No email found" },
+        { status: 400 }
+      );
+    }
+
+    if (!user.customerId) {
+      return NextResponse.json(
+        { error: "Missing Paddle customerId" },
         { status: 400 }
       );
     }
@@ -61,57 +65,45 @@ export async function POST() {
       );
     }
 
-    console.log("PADDLE_PRICE_ID:", priceId);
-
-    // ✅ إنشاء Checkout Link عبر Paddle
+    // =========================
+    // Create Paddle Transaction
+    // =========================
     const transaction = await paddle.transactions.create({
       items: [
         {
-          priceId: priceId,
+          priceId,
           quantity: 1,
         },
       ],
 
-      customer: {
-        email: user.email,
-      },
+      customerId: user.customerId,
 
-      // Paddle handles success/cancel internally
       customData: {
         userId,
       },
-
-      checkout: {
-        successUrl: `${baseUrl}/dashboard`,
-        cancelUrl: `${baseUrl}/ai-image`,
-      },
     });
 
-    if (!transaction?.checkout?.url) {
-      console.error("Paddle transaction error:", transaction);
-
-      return NextResponse.json(
-        { error: "Paddle checkout creation failed" },
-        { status: 500 }
-      );
-    }
-
-    // DB (نفس فكرتك القديمة - لا نكسر السيرفر إذا فشل)
+    // =========================
+    // Save Checkout (non-blocking)
+    // =========================
     try {
       await db.abandonedCheckout.create({
         data: {
           userId,
           email: user.email,
-          checkoutUrl: transaction.checkout.url,
-          paddleTransactionId: transaction.id, // نحتفظ به كـ reference فقط
+          checkoutUrl: `${baseUrl}/dashboard`,
+          transactionId: transaction.id, // ✔️ FIXED HERE
         },
       });
     } catch (dbError) {
       console.log("DB error ignored:", dbError);
     }
 
+    // =========================
+    // Response
+    // =========================
     return NextResponse.json({
-      url: transaction.checkout.url,
+      url: `${baseUrl}/dashboard`,
     });
 
   } catch (error: any) {

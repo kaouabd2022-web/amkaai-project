@@ -35,23 +35,15 @@ export async function POST() {
     }
 
     // =========================
-    // 🔥 Paddle Billing Portal
+    // 🔥 TEMP BILLING RESPONSE (SAFE BUILD)
     // =========================
 
-    import { NextResponse } from "next/server";
-
-export async function GET() {
-  return NextResponse.json({
-    url: `${process.env.NEXT_PUBLIC_URL}/dashboard`,
-  });
-}
-
     return NextResponse.json({
-      url: portalSession.url,
+      url: `${process.env.NEXT_PUBLIC_URL}/dashboard`,
     });
 
   } catch (error) {
-    console.error("❌ Paddle billing portal error:", error);
+    console.error("❌ Billing API error:", error);
 
     return NextResponse.json(
       { error: "Internal Server Error" },
