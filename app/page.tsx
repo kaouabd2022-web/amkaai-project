@@ -1,10 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
 import { Sparkles, Mic, Video, BarChart, CreditCard, Bitcoin, Wallet } from "lucide-react";
 import { useEffect, useState } from "react";
-import AIGallery from "@/components/ai-gallery";
 
 export default function Home() {
   const [particles, setParticles] = useState<
@@ -62,19 +60,14 @@ export default function Home() {
         </video>
 
         <div className="relative z-10">
-          <motion.h1
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-5xl md:text-7xl font-bold gradient-text"
-          >
+          <h1 className="text-5xl md:text-7xl font-bold">
             Create AI Content <br /> That Feels Alive
-          </motion.h1>
+          </h1>
 
           <p className="mt-6 text-gray-400 text-lg">
             Images, Voices, Videos — powered by AI
           </p>
 
-          {/* 🔥 OFFER */}
           <p className="mt-4 text-yellow-400 font-semibold animate-pulse">
             ⚡ Only today: 20% OFF
           </p>
@@ -82,7 +75,7 @@ export default function Home() {
           <div className="mt-10 flex justify-center gap-4 flex-wrap">
             <Link
               href="/dashboard"
-              className="btn-primary px-10 py-4 rounded-2xl font-semibold"
+              className="px-10 py-4 rounded-2xl font-semibold bg-white text-black"
             >
               Start Free →
             </Link>
@@ -94,7 +87,6 @@ export default function Home() {
               Pricing
             </Link>
 
-            {/* 🔥 Direct Upgrade */}
             <Link
               href="/pricing"
               className="px-8 py-4 rounded-2xl bg-yellow-500 text-black font-bold hover:scale-105 transition"
@@ -105,30 +97,25 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 💳 PAYMENT METHODS */}
+      {/* 💳 PAYMENT */}
       <section className="px-8 pb-16 text-center">
         <h2 className="text-2xl font-bold mb-6">We support all payments</h2>
 
         <div className="flex justify-center flex-wrap gap-6 text-gray-300">
 
-          <div className="glass px-6 py-4 rounded-xl flex items-center gap-2">
-            <CreditCard size={18} /> Card (Stripe)
+          <div className="px-6 py-4 rounded-xl border border-white/10 flex items-center gap-2">
+            <CreditCard size={18} /> Card
           </div>
 
-          <div className="glass px-6 py-4 rounded-xl flex items-center gap-2">
-            <Bitcoin size={18} /> Crypto (USDT)
+          <div className="px-6 py-4 rounded-xl border border-white/10 flex items-center gap-2">
+            <Bitcoin size={18} /> Crypto
           </div>
 
-          <div className="glass px-6 py-4 rounded-xl flex items-center gap-2">
+          <div className="px-6 py-4 rounded-xl border border-white/10 flex items-center gap-2">
             <Wallet size={18} /> BaridiMob 🇩🇿
           </div>
 
         </div>
-      </section>
-
-      {/* 🧠 TRUST */}
-      <section className="text-center text-gray-500 mb-10">
-        Trusted by 1,000+ creators worldwide
       </section>
 
       {/* 🧠 FEATURES */}
@@ -139,40 +126,6 @@ export default function Home() {
         <Feature title="Dashboard" desc="Manage everything" icon={<BarChart />} link="/dashboard" />
       </section>
 
-      <AIGallery />
-
-      {/* 💬 Testimonials */}
-      <section className="px-8 py-20">
-        <h2 className="text-4xl text-center font-bold gradient-text mb-12">
-          What creators say
-        </h2>
-
-        <div className="grid md:grid-cols-3 gap-6">
-          <Card text="This AI changed my workflow 🚀" name="Alex" />
-          <Card text="Best AI video generator 🔥" name="Sarah" />
-          <Card text="Fast & high quality 💎" name="Omar" />
-        </div>
-      </section>
-
-      {/* 💎 CTA */}
-      <section className="px-8 pb-24">
-        <div className="glass p-10 rounded-3xl flex flex-col md:flex-row justify-between items-center">
-          <div>
-            <h2 className="text-2xl font-bold">Upgrade to Pro 🚀</h2>
-            <p className="text-gray-400">
-              Faster queue, more credits, premium models
-            </p>
-          </div>
-
-          <Link
-            href="/pricing"
-            className="btn-primary mt-6 md:mt-0 px-8 py-3 rounded-xl"
-          >
-            View Plans
-          </Link>
-        </div>
-      </section>
-
     </main>
   );
 }
@@ -180,22 +133,10 @@ export default function Home() {
 /* 🔹 Feature */
 function Feature({ title, desc, icon, link }: any) {
   return (
-    <motion.div whileHover={{ scale: 1.05 }}>
-      <Link href={link} className="glass p-6 rounded-2xl block">
-        <div className="text-cyan-400 mb-4">{icon}</div>
-        <h3 className="text-lg font-semibold">{title}</h3>
-        <p className="text-gray-400">{desc}</p>
-      </Link>
-    </motion.div>
-  );
-}
-
-/* 🔹 Testimonial */
-function Card({ text, name }: any) {
-  return (
-    <div className="glass p-6 rounded-2xl">
-      <p className="text-gray-300">"{text}"</p>
-      <p className="text-gray-500 mt-4">— {name}</p>
-    </div>
+    <Link href={link} className="p-6 rounded-2xl border border-white/10 block hover:scale-105 transition">
+      <div className="text-cyan-400 mb-4">{icon}</div>
+      <h3 className="text-lg font-semibold">{title}</h3>
+      <p className="text-gray-400">{desc}</p>
+    </Link>
   );
 }
