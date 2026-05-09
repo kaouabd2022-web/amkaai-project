@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sendAbandonedEmail } from "@/lib/email";
 
+export const runtime = "nodejs"; // 🔥 مهم جدًا لـ Vercel
+
 export async function POST() {
   try {
     // ⏱ بعد 30 دقيقة
@@ -17,24 +19,30 @@ export async function POST() {
 
     let sent = 0;
 
-    for (const item of list) {
-      if (!item.email || !item.checkoutUrl) continue;
+    // 🔥 تحسين مهم: منع crash لو DB كبير
+    for (const item of list ?? []) {
+      try {
+        if (!item.email || !item.checkoutUrl) continue;
 
-      // 📩 إرسال الإيميل (correct format)
-      await sendAbandonedEmail({
-        email: item.email,
-        checkoutUrl: item.checkoutUrl,
-      });
+        // 📩 إرسال الإيميل
+        await sendAbandonedEmail({
+          email: item.email,
+          checkoutUrl: item.checkoutUrl,
+        });
 
-      // ✅ تحديث الحالة
-      await db.abandonedCheckout.update({
-        where: { id: item.id },
-        data: {
-          recovered: true,
-        },
-      });
+        // ✅ تحديث الحالة
+        await db.abandonedCheckout.update({
+          where: { id: item.id },
+          data: {
+            recovered: true,
+          },
+        });
 
-      sent++;
+        sent++;
+      } catch (innerError) {
+        console.error("Failed item:", item.id, innerError);
+        continue;
+      }
     }
 
     return NextResponse.json({
