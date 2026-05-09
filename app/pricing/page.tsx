@@ -12,7 +12,6 @@ export default function PricingPage() {
   const [method, setMethod] = useState<Method | null>(null);
   const [copied, setCopied] = useState<"usdt" | "rip" | null>(null);
   const [loadingCheckout, setLoadingCheckout] = useState(false);
-  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     fetch("/api/payment-info")
@@ -38,7 +37,6 @@ export default function PricingPage() {
     setTimeout(() => setCopied(null), 2000);
   };
 
-  // ===================== CHECKOUT =====================
   const goToCheckout = async (plan: Plan) => {
     try {
       setLoadingCheckout(true);
@@ -57,8 +55,6 @@ export default function PricingPage() {
       }
 
       window.location.href = data.url;
-    } catch {
-      alert("❌ Checkout failed");
     } finally {
       setLoadingCheckout(false);
     }
@@ -131,7 +127,6 @@ export default function PricingPage() {
             Or manual payment
           </p>
 
-          {/* PAYMENT METHODS */}
           <div className="grid grid-cols-2 gap-4">
 
             <PaymentBox
