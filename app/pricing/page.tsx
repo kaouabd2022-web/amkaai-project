@@ -105,7 +105,6 @@ export default function PricingPage() {
         🎬 Try 1 Free Video
       </button>
 
-      {/* PLANS */}
       <div className="grid md:grid-cols-2 gap-8 w-full max-w-4xl">
         <Card
           title="Pro"
@@ -122,11 +121,9 @@ export default function PricingPage() {
         />
       </div>
 
-      {/* MODAL */}
       {selectedPlan && (
         <Modal>
           <h2 className="text-xl font-bold text-center mb-2">Complete Payment</h2>
-
           <p className="text-center text-gray-400 mb-6 text-sm">{priceText}</p>
 
           <button
@@ -137,9 +134,7 @@ export default function PricingPage() {
             {loadingCheckout ? "Processing..." : "💳 Pay with Card"}
           </button>
 
-          <p className="text-xs text-yellow-400 text-center mb-3">
-            Or manual payment
-          </p>
+          <p className="text-xs text-yellow-400 text-center mb-3">Or manual payment</p>
 
           <div className="grid grid-cols-2 gap-4">
             <PaymentBox
@@ -168,8 +163,8 @@ export default function PricingPage() {
               color="blue"
             />
           </div>
-          
-          <button 
+
+          <button
             onClick={() => setSelectedPlan(null)}
             className="w-full mt-6 text-gray-500 text-sm hover:text-white transition"
           >
@@ -193,17 +188,16 @@ function PaymentBox({
   color,
 }: PaymentBoxProps) {
   
-  // تعريف Styles بنوع Record لضمان مطابقة الـ Keys مع نوع Color
-  const styles: Record<Color, string> = {
-    green: "border-green-500 bg-green-500/20",
-    blue: "border-blue-500 bg-blue-500/20",
-  };
+  // حل جذري: تحديد الستايل بناءً على الشرط مباشرة لتجنب indexing error
+  const activeStyle = color === "green" 
+    ? "border-green-500 bg-green-500/20" 
+    : "border-blue-500 bg-blue-500/20";
 
   return (
     <div
       onClick={onClick}
       className={`p-4 rounded-xl text-center cursor-pointer border transition ${
-        active ? styles[color] : "border-white/10 hover:border-white/30"
+        active ? activeStyle : "border-white/10 hover:border-white/30"
       }`}
     >
       <p className="text-sm font-semibold mb-2">{title}</p>
