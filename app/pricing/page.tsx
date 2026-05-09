@@ -65,20 +65,16 @@ export default function PricingPage() {
   const goToCheckout = async (plan: Plan) => {
     try {
       setLoadingCheckout(true);
-
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ plan }),
       });
-
       const data = await res.json();
-
       if (!data?.url) {
         alert("❌ Payment error");
         return;
       }
-
       window.location.href = data.url;
     } finally {
       setLoadingCheckout(false);
@@ -112,7 +108,6 @@ export default function PricingPage() {
           sub="150 credits"
           onClick={() => setSelectedPlan("pro")}
         />
-
         <Card
           title="Premium"
           price="$25"
@@ -129,7 +124,7 @@ export default function PricingPage() {
           <button
             onClick={() => goToCheckout(selectedPlan)}
             disabled={loadingCheckout}
-            className="w-full bg-cyan-500 py-3 rounded-xl text-black font-bold mb-4"
+            className="w-full bg-cyan-500 py-3 rounded-xl text-black font-bold mb-4 hover:bg-cyan-400 transition"
           >
             {loadingCheckout ? "Processing..." : "💳 Pay with Card"}
           </button>
@@ -149,7 +144,6 @@ export default function PricingPage() {
               }}
               color="green"
             />
-
             <PaymentBox
               active={method === "BARIDIMOB"}
               onClick={() => setMethod("BARIDIMOB")}
@@ -188,17 +182,18 @@ function PaymentBox({
   color,
 }: PaymentBoxProps) {
   
-  // حل جذري: تحديد الستايل بناءً على الشرط مباشرة لتجنب indexing error
-  const activeStyle = color === "green" 
-    ? "border-green-500 bg-green-500/20" 
-    : "border-blue-500 bg-blue-500/20";
+  // استخدام وظيفة ترجع الستايل بناءً على اللون والنشاط بشكل صريح جداً لـ TypeScript
+  const getBoxStyle = () => {
+    if (!active) return "border-white/10 hover:border-white/30";
+    if (color === "green") return "border-green-500 bg-green-500/20";
+    if (color === "blue") return "border-blue-500 bg-blue-500/20";
+    return "border-white/10";
+  };
 
   return (
     <div
       onClick={onClick}
-      className={`p-4 rounded-xl text-center cursor-pointer border transition ${
-        active ? activeStyle : "border-white/10 hover:border-white/30"
-      }`}
+      className={`p-4 rounded-xl text-center cursor-pointer border transition ${getBoxStyle()}`}
     >
       <p className="text-sm font-semibold mb-2">{title}</p>
       <p className="text-[10px] break-all mb-2 opacity-70">{value}</p>
@@ -221,7 +216,6 @@ function Card({ title, price, sub, onClick }: CardProps) {
       <h2 className="text-2xl font-bold mb-2">{title}</h2>
       <p className="text-3xl font-bold mb-1">{price}</p>
       <p className="text-gray-400 text-sm mb-6">{sub}</p>
-
       <button
         onClick={onClick}
         className="w-full bg-white text-black py-3 rounded-xl font-bold hover:bg-gray-200 transition"
