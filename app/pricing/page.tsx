@@ -205,11 +205,14 @@ function PaymentBox({
     blue: "border-blue-500 bg-blue-500/20",
   };
 
+  // 🔥 أهم إصلاح: منع any indexing error
+  const safeColor: Color = color;
+
   return (
     <div
       onClick={onClick}
       className={`p-4 rounded-xl text-center cursor-pointer border transition ${
-        active ? styles[color] : "border-white/10"
+        active ? styles[safeColor] : "border-white/10"
       }`}
     >
       <p className="text-sm mb-2">{title}</p>
