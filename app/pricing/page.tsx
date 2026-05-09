@@ -92,10 +92,7 @@ export default function PricingPage() {
 
   return (
     <main className="min-h-screen bg-black text-white flex flex-col items-center justify-center px-6">
-
-      <h1 className="text-5xl font-bold mb-4 text-center">
-        Create AI Videos 🚀
-      </h1>
+      <h1 className="text-5xl font-bold mb-4 text-center">Create AI Videos 🚀</h1>
 
       <p className="text-gray-400 mb-10 text-center">
         No free plan. Real power starts here.
@@ -110,7 +107,6 @@ export default function PricingPage() {
 
       {/* PLANS */}
       <div className="grid md:grid-cols-2 gap-8 w-full max-w-4xl">
-
         <Card
           title="Pro"
           price="$15"
@@ -124,20 +120,14 @@ export default function PricingPage() {
           sub="500 credits"
           onClick={() => setSelectedPlan("premium")}
         />
-
       </div>
 
       {/* MODAL */}
       {selectedPlan && (
         <Modal>
+          <h2 className="text-xl font-bold text-center mb-2">Complete Payment</h2>
 
-          <h2 className="text-xl font-bold text-center mb-2">
-            Complete Payment
-          </h2>
-
-          <p className="text-center text-gray-400 mb-6 text-sm">
-            {priceText}
-          </p>
+          <p className="text-center text-gray-400 mb-6 text-sm">{priceText}</p>
 
           <button
             onClick={() => goToCheckout(selectedPlan)}
@@ -152,7 +142,6 @@ export default function PricingPage() {
           </p>
 
           <div className="grid grid-cols-2 gap-4">
-
             <PaymentBox
               active={method === "USDT"}
               onClick={() => setMethod("USDT")}
@@ -178,12 +167,16 @@ export default function PricingPage() {
               }}
               color="blue"
             />
-
           </div>
-
+          
+          <button 
+            onClick={() => setSelectedPlan(null)}
+            className="w-full mt-6 text-gray-500 text-sm hover:text-white transition"
+          >
+            Cancel
+          </button>
         </Modal>
       )}
-
     </main>
   );
 }
@@ -199,28 +192,26 @@ function PaymentBox({
   onCopy,
   color,
 }: PaymentBoxProps) {
-
+  
+  // تعريف Styles بنوع Record لضمان مطابقة الـ Keys مع نوع Color
   const styles: Record<Color, string> = {
     green: "border-green-500 bg-green-500/20",
     blue: "border-blue-500 bg-blue-500/20",
   };
 
-  // 🔥 أهم إصلاح: منع any indexing error
-  const safeColor: Color = color;
-
   return (
     <div
       onClick={onClick}
       className={`p-4 rounded-xl text-center cursor-pointer border transition ${
-        active ? styles[safeColor] : "border-white/10"
+        active ? styles[color] : "border-white/10 hover:border-white/30"
       }`}
     >
-      <p className="text-sm mb-2">{title}</p>
-      <p className="text-xs break-all mb-2">{value}</p>
+      <p className="text-sm font-semibold mb-2">{title}</p>
+      <p className="text-[10px] break-all mb-2 opacity-70">{value}</p>
 
       <button
         onClick={onCopy}
-        className="w-full bg-white/10 py-1 rounded text-xs"
+        className="w-full bg-white/10 hover:bg-white/20 py-1 rounded text-xs transition"
       >
         {copied ? "Copied ✔" : "Copy"}
       </button>
@@ -232,14 +223,14 @@ function PaymentBox({
 
 function Card({ title, price, sub, onClick }: CardProps) {
   return (
-    <div className="p-8 rounded-2xl border border-white/10 bg-white/5">
+    <div className="p-8 rounded-2xl border border-white/10 bg-white/5 hover:border-white/20 transition">
       <h2 className="text-2xl font-bold mb-2">{title}</h2>
       <p className="text-3xl font-bold mb-1">{price}</p>
       <p className="text-gray-400 text-sm mb-6">{sub}</p>
 
       <button
         onClick={onClick}
-        className="w-full bg-white text-black py-3 rounded-xl font-bold"
+        className="w-full bg-white text-black py-3 rounded-xl font-bold hover:bg-gray-200 transition"
       >
         Choose
       </button>
@@ -251,8 +242,8 @@ function Card({ title, price, sub, onClick }: CardProps) {
 
 function Modal({ children }: ModalProps) {
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-      <div className="bg-[#0f0f0f] p-8 rounded-2xl w-full max-w-md border border-white/10">
+    <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4">
+      <div className="bg-[#0f0f0f] p-8 rounded-2xl w-full max-w-md border border-white/10 shadow-2xl">
         {children}
       </div>
     </div>
