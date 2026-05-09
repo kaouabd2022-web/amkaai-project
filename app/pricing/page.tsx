@@ -4,10 +4,37 @@ import { useState, useEffect } from "react";
 
 type Color = "green" | "blue";
 
+type Plan = "pro" | "premium";
+
+type PaymentType = "USDT" | "BARIDIMOB";
+
+type PaymentBoxProps = {
+  active: boolean;
+  onClick: () => void;
+  title: string;
+  value: string;
+  copied: boolean;
+  onCopy: (e: any) => void;
+  color: Color;
+};
+
+type CardProps = {
+  title: string;
+  price: string;
+  sub?: string;
+  highlight?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+};
+
+type ModalProps = {
+  children: React.ReactNode;
+};
+
 export default function PricingPage() {
-  const [selectedPlan, setSelectedPlan] = useState<"pro" | "premium" | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [paymentInfo, setPaymentInfo] = useState({ rip: "", usdt: "" });
-  const [method, setMethod] = useState<"USDT" | "BARIDIMOB" | null>(null);
+  const [method, setMethod] = useState<PaymentType | null>(null);
   const [copied, setCopied] = useState<"usdt" | "rip" | null>(null);
   const [loadingCheckout, setLoadingCheckout] = useState(false);
 
@@ -35,9 +62,9 @@ export default function PricingPage() {
   };
 
   // =========================
-  // Paddle Checkout (FIXED)
+  // Checkout (Paddle)
   // =========================
-  const goToCheckout = async (plan: "pro" | "premium") => {
+  const goToCheckout = async (plan: Plan) => {
     try {
       setLoadingCheckout(true);
 
@@ -46,7 +73,7 @@ export default function PricingPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ plan }), // ✔ مهم جدًا
+        body: JSON.stringify({ plan }),
       });
 
       const data = await res.json();
@@ -56,7 +83,7 @@ export default function PricingPage() {
         return;
       }
 
-      window.location.href = data.url; // ✔ أفضل من assign
+      window.location.href = data.url;
 
     } catch (err) {
       console.error(err);
@@ -126,22 +153,18 @@ export default function PricingPage() {
             {priceText}
           </p>
 
-          {/* PADDLE BUTTON */}
           <button
             onClick={() => goToCheckout(selectedPlan)}
             disabled={loadingCheckout}
             className="w-full bg-cyan-500 hover:bg-cyan-400 py-3 rounded-xl text-black font-bold mb-4 transition"
           >
-            {loadingCheckout
-              ? "Processing..."
-              : "💳 Pay with Card (Powered by Paddle)"}
+            {loadingCheckout ? "Processing..." : "💳 Pay with Card (Powered by Paddle)"}
           </button>
 
           <p className="text-xs text-yellow-400 text-center mb-2">
             Or choose manual payment 👇
           </p>
 
-          {/* MANUAL PAYMENT */}
           <div className="grid grid-cols-2 gap-4">
 
             <PaymentBox
@@ -150,7 +173,7 @@ export default function PricingPage() {
               title="USDT (TRC20)"
               value={paymentInfo.usdt}
               copied={copied === "usdt"}
-              onCopy={(e: any) => {
+              onCopy={(e) => {
                 e.stopPropagation();
                 copy(paymentInfo.usdt, "usdt");
               }}
@@ -163,7 +186,7 @@ export default function PricingPage() {
               title="BaridiMob"
               value={paymentInfo.rip}
               copied={copied === "rip"}
-              onCopy={(e: any) => {
+              onCopy={(e) => {
                 e.stopPropagation();
                 copy(paymentInfo.rip, "rip");
               }}
@@ -188,8 +211,8 @@ function PaymentBox({
   copied,
   onCopy,
   color,
-}: any) {
-  const styles = {
+}: PaymentBoxProps) {
+  const styles: Record<Color, string> = {
     green: active ? "border-green-500 bg-green-500/20" : "border-white/10",
     blue: active ? "border-blue-500 bg-blue-500/20" : "border-white/10",
   };
@@ -200,7 +223,6 @@ function PaymentBox({
       className={`p-4 rounded-xl text-center cursor-pointer border transition ${styles[color]}`}
     >
       <p className="text-sm mb-2 font-semibold">{title}</p>
-
       <p className="text-xs break-all mb-3 text-gray-300">{value}</p>
 
       <button
@@ -213,7 +235,7 @@ function PaymentBox({
   );
 }
 
-function Card({ title, price, sub, children, onClick, highlight }: any) {
+function Card({ title, price, sub, children, onClick, highlight }: CardProps) {
   return (
     <div
       className={`p-8 rounded-2xl border ${
@@ -236,7 +258,7 @@ function Card({ title, price, sub, children, onClick, highlight }: any) {
   );
 }
 
-function Modal({ children }: any) {
+function Modal({ children }: ModalProps) {
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-[#0f0f0f] p-8 rounded-2xl w-full max-w-md border border-white/10 shadow-2xl">
