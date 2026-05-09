@@ -6,23 +6,6 @@ type Plan = "pro" | "premium";
 type Method = "USDT" | "BARIDIMOB";
 type Color = "green" | "blue";
 
-type PaymentBoxProps = {
-  active: boolean;
-  onClick: () => void;
-  title: string;
-  value: string;
-  copied: boolean;
-  onCopy: (e: React.MouseEvent) => void;
-  color: Color;
-};
-
-type CardProps = {
-  title: string;
-  price: string;
-  sub: string;
-  onClick: () => void;
-};
-
 export default function PricingPage() {
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [paymentInfo, setPaymentInfo] = useState({ rip: "", usdt: "" });
@@ -133,6 +116,7 @@ export default function PricingPage() {
             {priceText}
           </p>
 
+          {/* PAY BUTTON */}
           <button
             onClick={() => goToCheckout(selectedPlan)}
             disabled={loadingCheckout}
@@ -192,18 +176,27 @@ function PaymentBox({
   copied,
   onCopy,
   color,
-}: PaymentBoxProps) {
-
-  const styles: Record<Color, string> = {
+}: {
+  active: boolean;
+  onClick: () => void;
+  title: string;
+  value: string;
+  copied: boolean;
+  onCopy: (e: React.MouseEvent) => void;
+  color: Color;
+}) {
+  const styles = {
     green: "border-green-500 bg-green-500/20",
     blue: "border-blue-500 bg-blue-500/20",
-  };
+  } as const;
+
+  const colorClass = styles[color];
 
   return (
     <div
       onClick={onClick}
       className={`p-4 rounded-xl text-center cursor-pointer border transition ${
-        active ? styles[color] : "border-white/10"
+        active ? colorClass : "border-white/10"
       }`}
     >
       <p className="text-sm mb-2">{title}</p>
@@ -221,7 +214,17 @@ function PaymentBox({
 
 /* ================= CARD ================= */
 
-function Card({ title, price, sub, onClick }: CardProps) {
+function Card({
+  title,
+  price,
+  sub,
+  onClick,
+}: {
+  title: string;
+  price: string;
+  sub: string;
+  onClick: () => void;
+}) {
   return (
     <div className="p-8 rounded-2xl border border-white/10 bg-white/5">
       <h2 className="text-2xl font-bold mb-2">{title}</h2>
