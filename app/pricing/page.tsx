@@ -3,9 +3,7 @@
 import { useState, useEffect } from "react";
 
 type Color = "green" | "blue";
-
 type Plan = "pro" | "premium";
-
 type PaymentType = "USDT" | "BARIDIMOB";
 
 type PaymentBoxProps = {
@@ -14,7 +12,7 @@ type PaymentBoxProps = {
   title: string;
   value: string;
   copied: boolean;
-  onCopy: (e: any) => void;
+  onCopy: (e: React.MouseEvent) => void;
   color: Color;
 };
 
@@ -62,7 +60,7 @@ export default function PricingPage() {
   };
 
   // =========================
-  // Checkout (Paddle)
+  // Checkout
   // =========================
   const goToCheckout = async (plan: Plan) => {
     try {
@@ -212,9 +210,15 @@ function PaymentBox({
   onCopy,
   color,
 }: PaymentBoxProps) {
+
   const styles: Record<Color, string> = {
-    green: active ? "border-green-500 bg-green-500/20" : "border-white/10",
-    blue: active ? "border-blue-500 bg-blue-500/20" : "border-white/10",
+    green: active
+      ? "border-green-500 bg-green-500/20"
+      : "border-white/10",
+
+    blue: active
+      ? "border-blue-500 bg-blue-500/20"
+      : "border-white/10",
   };
 
   return (
