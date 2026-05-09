@@ -3,17 +3,17 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// ❗ مهم: لا Prisma / لا Email / لا DB هنا أبداً
 export async function POST() {
-  try {
-    return NextResponse.json({
-      success: true,
-      sent: 0,
-      message: "Abandoned route disabled for build safety",
-    });
-  } catch (error) {
-    return NextResponse.json(
-      { error: "failed" },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json({
+    ok: true,
+    message: "Abandoned endpoint disabled for build stability",
+  });
+}
+
+// ❗ لو كان Next يحاول جمع بيانات GET أيضاً
+export async function GET() {
+  return NextResponse.json({
+    ok: true,
+  });
 }
