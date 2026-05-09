@@ -2,9 +2,34 @@
 
 import { useState, useEffect } from "react";
 
+/* ================= TYPES ================= */
+
 type Plan = "pro" | "premium";
 type Method = "USDT" | "BARIDIMOB";
 type Color = "green" | "blue";
+
+type PaymentBoxProps = {
+  active: boolean;
+  onClick: () => void;
+  title: string;
+  value: string;
+  copied: boolean;
+  onCopy: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  color: Color;
+};
+
+type CardProps = {
+  title: string;
+  price: string;
+  sub: string;
+  onClick: () => void;
+};
+
+type ModalProps = {
+  children: React.ReactNode;
+};
+
+/* ================= PAGE ================= */
 
 export default function PricingPage() {
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
@@ -55,8 +80,6 @@ export default function PricingPage() {
       }
 
       window.location.href = data.url;
-    } catch {
-      alert("❌ Checkout failed");
     } finally {
       setLoadingCheckout(false);
     }
@@ -175,26 +198,19 @@ function PaymentBox({
   copied,
   onCopy,
   color,
-}: {
-  active: boolean;
-  onClick: () => void;
-  title: string;
-  value: string;
-  copied: boolean;
-  onCopy: (e: React.MouseEvent) => void;
-  color: Color;
-}) {
+}: PaymentBoxProps) {
+
   const styles: Record<Color, string> = {
     green: "border-green-500 bg-green-500/20",
     blue: "border-blue-500 bg-blue-500/20",
   };
 
-  const className = active ? styles[color] : "border-white/10";
-
   return (
     <div
       onClick={onClick}
-      className={`p-4 rounded-xl text-center cursor-pointer border transition ${className}`}
+      className={`p-4 rounded-xl text-center cursor-pointer border transition ${
+        active ? styles[color] : "border-white/10"
+      }`}
     >
       <p className="text-sm mb-2">{title}</p>
       <p className="text-xs break-all mb-2">{value}</p>
@@ -211,17 +227,7 @@ function PaymentBox({
 
 /* ================= CARD ================= */
 
-function Card({
-  title,
-  price,
-  sub,
-  onClick,
-}: {
-  title: string;
-  price: string;
-  sub: string;
-  onClick: () => void;
-}) {
+function Card({ title, price, sub, onClick }: CardProps) {
   return (
     <div className="p-8 rounded-2xl border border-white/10 bg-white/5">
       <h2 className="text-2xl font-bold mb-2">{title}</h2>
@@ -240,7 +246,7 @@ function Card({
 
 /* ================= MODAL ================= */
 
-function Modal({ children }: { children: React.ReactNode }) {
+function Modal({ children }: ModalProps) {
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
       <div className="bg-[#0f0f0f] p-8 rounded-2xl w-full max-w-md border border-white/10">
