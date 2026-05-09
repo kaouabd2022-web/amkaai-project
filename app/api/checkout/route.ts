@@ -4,69 +4,54 @@ import { db } from "@/lib/db";
 import { Paddle } from "@paddle/paddle-node-sdk";
 
 // =========================
-// Paddle Init
+// SAFE INIT (no crash build)
 // =========================
-if (!process.env.PADDLE_API_KEY) {
-  throw new Error("Missing PADDLE_API_KEY");
-}
+const paddleApiKey = process.env.PADDLE_API_KEY || "";
 
-const paddle = new Paddle(process.env.PADDLE_API_KEY!);
+const paddle = new Paddle(paddleApiKey);
 
 export async function POST(req: Request) {
   try {
     const { userId } = await auth();
 
     if (!userId) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { plan } = await req.json();
+
+    if (!plan) {
+      return NextResponse.json({ error: "Missing plan" }, { status: 400 });
     }
 
     const user = await db.user.findUnique({
       where: { clerkId: userId },
     });
 
-    if (!user) {
+    if (!user?.email || !user?.customerId) {
       return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      );
-    }
-
-    if (!user.email) {
-      return NextResponse.json(
-        { error: "No email found" },
-        { status: 400 }
-      );
-    }
-
-    if (!user.customerId) {
-      return NextResponse.json(
-        { error: "Missing Paddle customerId" },
+        { error: "User missing data" },
         { status: 400 }
       );
     }
 
     // =========================
-    // 🔥 NEW: get plan from frontend
+    // FIX: proper env names
     // =========================
-    const { plan } = await req.json();
-
     const priceId =
       plan === "pro"
-        ? process.env.PADDLE_PRO_KEY
-        : process.env.PADDLE_PREMIUM_KEY;
+        ? process.env.PADDLE_PRICE_PRO
+        : process.env.PADDLE_PRICE_PREMIUM;
 
     if (!priceId) {
       return NextResponse.json(
-        { error: "Missing Paddle Price ID" },
+        { error: "Missing PRICE_ID" },
         { status: 500 }
       );
     }
 
     // =========================
-    // Create Paddle Transaction
+    // CREATE TRANSACTION
     // =========================
     const transaction = await paddle.transactions.create({
       items: [
@@ -83,19 +68,22 @@ export async function POST(req: Request) {
     });
 
     // =========================
-    // Get checkout URL
+    // FIX: safe checkout URL
     // =========================
-    const checkoutUrl = transaction.checkout?.url;
+    const checkoutUrl =
+      (transaction as any)?.checkout?.url ||
+      (transaction as any)?.checkout_url ||
+      (transaction as any)?.url;
 
     if (!checkoutUrl) {
       return NextResponse.json(
-        { error: "Failed to create checkout URL" },
+        { error: "Checkout URL not found" },
         { status: 500 }
       );
     }
 
     // =========================
-    // Save abandoned checkout (safe)
+    // DB (safe)
     // =========================
     try {
       await db.abandonedCheckout.create({
@@ -107,23 +95,16 @@ export async function POST(req: Request) {
         },
       });
     } catch (e) {
-      console.log("DB error ignored:", e);
+      console.log("DB ignored:", e);
     }
 
-    // =========================
-    // Return checkout URL
-    // =========================
-    return NextResponse.json({
-      url: checkoutUrl,
-    });
+    return NextResponse.json({ url: checkoutUrl });
 
   } catch (error: any) {
-    console.error("🔥 CHECKOUT ERROR:", error);
+    console.error("CHECKOUT ERROR:", error);
 
     return NextResponse.json(
-      {
-        error: error?.message || "Internal Server Error",
-      },
+      { error: error.message || "Server error" },
       { status: 500 }
     );
   }
