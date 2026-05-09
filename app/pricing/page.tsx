@@ -2,13 +2,17 @@
 
 import { useState, useEffect } from "react";
 
+type Plan = "pro" | "premium";
+type Method = "USDT" | "BARIDIMOB";
+type Color = "green" | "blue";
+
 export default function PricingPage() {
-  const [selectedPlan, setSelectedPlan] = useState<"pro" | "premium" | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [paymentInfo, setPaymentInfo] = useState({ rip: "", usdt: "" });
-  const [method, setMethod] = useState<"USDT" | "BARIDIMOB" | null>(null);
+  const [method, setMethod] = useState<Method | null>(null);
   const [copied, setCopied] = useState<"usdt" | "rip" | null>(null);
-  const [uploading, setUploading] = useState(false);
   const [loadingCheckout, setLoadingCheckout] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     fetch("/api/payment-info")
@@ -34,22 +38,21 @@ export default function PricingPage() {
     setTimeout(() => setCopied(null), 2000);
   };
 
-  const goToCheckout = async (plan: "pro" | "premium") => {
+  // ===================== CHECKOUT =====================
+  const goToCheckout = async (plan: Plan) => {
     try {
       setLoadingCheckout(true);
 
       const res = await fetch("/api/checkout", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ plan }),
       });
 
       const data = await res.json();
 
       if (!data?.url) {
-        alert("❌ Stripe error");
+        alert("❌ Payment error");
         return;
       }
 
@@ -69,43 +72,41 @@ export default function PricingPage() {
   return (
     <main className="min-h-screen bg-black text-white flex flex-col items-center justify-center px-6">
 
-      <h1 className="text-5xl font-bold mb-4">Create AI Videos 🚀</h1>
-      <p className="text-gray-400 mb-12">No free plan. Real power starts here.</p>
+      <h1 className="text-5xl font-bold mb-4 text-center">
+        Create AI Videos 🚀
+      </h1>
 
-      {/* 🔥 TRY BUTTON */}
+      <p className="text-gray-400 mb-10 text-center">
+        No free plan. Real power starts here.
+      </p>
+
       <button
-        onClick={() => window.location.href = "/dashboard"}
-        className="mb-10 bg-white text-black px-6 py-3 rounded-xl font-bold hover:scale-105 transition"
+        onClick={() => (window.location.href = "/dashboard")}
+        className="mb-10 bg-white text-black px-6 py-3 rounded-xl font-bold"
       >
         🎬 Try 1 Free Video
       </button>
 
+      {/* PLANS */}
       <div className="grid md:grid-cols-2 gap-8 w-full max-w-4xl">
 
         <Card
           title="Pro"
-          highlight
           price="$15"
-          sub="15 USDT • 4500 DZD"
+          sub="150 credits"
           onClick={() => setSelectedPlan("pro")}
-        >
-          <li>150 credits</li>
-          <li>Fast generation</li>
-        </Card>
+        />
 
         <Card
           title="Premium"
           price="$25"
-          sub="25 USDT • 7500 DZD"
+          sub="500 credits"
           onClick={() => setSelectedPlan("premium")}
-        >
-          <li>500 credits</li>
-          <li>Ultra fast</li>
-        </Card>
+        />
 
       </div>
 
-      {/* 💰 PAYMENT */}
+      {/* MODAL */}
       {selectedPlan && (
         <Modal>
 
@@ -117,7 +118,7 @@ export default function PricingPage() {
             {priceText}
           </p>
 
-          {/* 💳 STRIPE */}
+          {/* PAY BUTTON */}
           <button
             onClick={() => goToCheckout(selectedPlan)}
             disabled={loadingCheckout}
@@ -126,19 +127,17 @@ export default function PricingPage() {
             {loadingCheckout ? "Processing..." : "💳 Pay with Card"}
           </button>
 
-          {!method && (
-            <p className="text-xs text-yellow-400 text-center mb-2">
-              Select payment method 👇
-            </p>
-          )}
+          <p className="text-xs text-yellow-400 text-center mb-3">
+            Or manual payment
+          </p>
 
+          {/* PAYMENT METHODS */}
           <div className="grid grid-cols-2 gap-4">
 
-            {/* USDT */}
             <PaymentBox
               active={method === "USDT"}
               onClick={() => setMethod("USDT")}
-              title="USDT (TRC20)"
+              title="USDT"
               value={paymentInfo.usdt}
               copied={copied === "usdt"}
               onCopy={(e: any) => {
@@ -148,7 +147,6 @@ export default function PricingPage() {
               color="green"
             />
 
-            {/* BARIDIMOB */}
             <PaymentBox
               active={method === "BARIDIMOB"}
               onClick={() => setMethod("BARIDIMOB")}
@@ -164,74 +162,6 @@ export default function PricingPage() {
 
           </div>
 
-          {/* 📸 Upload */}
-          <div className="mt-4 bg-white/5 p-4 rounded-xl border border-white/10">
-            <p className="text-sm mb-2 text-center">
-              📸 Upload Screenshot
-            </p>
-
-            <input
-              type="file"
-              accept="image/*"
-              disabled={!method}
-              className="text-xs mb-3 w-full"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (!file || !method) return;
-
-                setUploading(true);
-
-                try {
-                  const formData = new FormData();
-                  formData.append("file", file);
-
-                  const uploadRes = await fetch("/api/upload", {
-                    method: "POST",
-                    body: formData,
-                  });
-
-                  const uploadData = await uploadRes.json();
-
-                  await fetch("/api/upload-payment", {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                      plan: selectedPlan.toUpperCase(),
-                      method,
-                      amount: selectedPlan === "pro" ? 15 : 25,
-                      screenshotUrl: uploadData.url,
-                    }),
-                  });
-
-                  window.location.href = "/billing/pending";
-
-                } catch {
-                  alert("❌ Upload failed");
-                }
-
-                setUploading(false);
-              }}
-            />
-
-            {uploading && (
-              <p className="text-xs text-yellow-400 text-center">
-                Uploading...
-              </p>
-            )}
-          </div>
-
-          <button
-            onClick={() => {
-              setSelectedPlan(null);
-              setMethod(null);
-            }}
-            className="mt-4 text-gray-400 w-full"
-          >
-            Cancel
-          </button>
-
         </Modal>
       )}
 
@@ -239,26 +169,36 @@ export default function PricingPage() {
   );
 }
 
-/* 🔹 Payment Box */
-function PaymentBox({ active, onClick, title, value, copied, onCopy, color }: any) {
+/* ================= PAYMENT BOX ================= */
+
+function PaymentBox({
+  active,
+  onClick,
+  title,
+  value,
+  copied,
+  onCopy,
+  color,
+}: {
+  active: boolean;
+  onClick: () => void;
+  title: string;
+  value: string;
+  copied: boolean;
+  onCopy: (e: any) => void;
+  color: Color;
+}) {
+  const styles: Record<Color, string> = {
+    green: active ? "border-green-500 bg-green-500/20" : "border-white/10",
+    blue: active ? "border-blue-500 bg-blue-500/20" : "border-white/10",
+  };
+
   return (
     <div
       onClick={onClick}
-      className={`p-4 rounded-xl text-center cursor-pointer border ${
-        active
-          ? `border-${color}-500 bg-${color}-500/20`
-          : "border-white/10"
-      }`}
+      className={`p-4 rounded-xl text-center cursor-pointer border transition ${styles[color]}`}
     >
       <p className="text-sm mb-2">{title}</p>
-
-      {value && (
-        <img
-          src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${value}`}
-          className="mx-auto mb-2"
-        />
-      )}
-
       <p className="text-xs break-all mb-2">{value}</p>
 
       <button
@@ -271,20 +211,28 @@ function PaymentBox({ active, onClick, title, value, copied, onCopy, color }: an
   );
 }
 
-/* CARD */
-function Card({ title, price, sub, children, onClick, highlight }: any) {
+/* ================= CARD ================= */
+
+function Card({
+  title,
+  price,
+  sub,
+  onClick,
+}: {
+  title: string;
+  price: string;
+  sub: string;
+  onClick: () => void;
+}) {
   return (
-    <div className={`p-8 rounded-2xl border ${
-      highlight ? "border-cyan-500" : "border-white/10"
-    } bg-white/5`}>
-      <h2 className="text-2xl font-bold mb-4">{title}</h2>
-      <p className="text-3xl font-bold mb-2">{price}</p>
-      {sub && <p className="text-gray-400 text-sm mb-4">{sub}</p>}
-      <ul className="text-gray-300 space-y-2 mb-6">{children}</ul>
+    <div className="p-8 rounded-2xl border border-white/10 bg-white/5">
+      <h2 className="text-2xl font-bold mb-2">{title}</h2>
+      <p className="text-3xl font-bold mb-1">{price}</p>
+      <p className="text-gray-400 text-sm mb-6">{sub}</p>
 
       <button
         onClick={onClick}
-        className="w-full bg-white text-black py-3 rounded-xl font-bold hover:scale-105 transition"
+        className="w-full bg-white text-black py-3 rounded-xl font-bold"
       >
         Choose
       </button>
@@ -292,8 +240,9 @@ function Card({ title, price, sub, children, onClick, highlight }: any) {
   );
 }
 
-/* MODAL */
-function Modal({ children }: any) {
+/* ================= MODAL ================= */
+
+function Modal({ children }: { children: React.ReactNode }) {
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
       <div className="bg-[#0f0f0f] p-8 rounded-2xl w-full max-w-md border border-white/10">
