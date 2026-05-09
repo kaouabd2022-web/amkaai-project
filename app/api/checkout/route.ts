@@ -1,63 +1,147 @@
 import { NextResponse } from "next/server";
-import Stripe from "stripe";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
+import { Paddle } from "@paddle/paddle-node-sdk";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2026-03-25.dahlia",
-});
+// =========================
+// CHECK ENV
+// =========================
+if (!process.env.PADDLE_API_KEY) {
+  throw new Error("Missing PADDLE_API_KEY");
+}
 
-export async function POST() {
+// =========================
+// PADDLE INIT
+// =========================
+const paddle = new Paddle(process.env.PADDLE_API_KEY);
+
+export async function POST(req: Request) {
   try {
-    const { userId } = await await auth();
+    // =========================
+    // AUTH
+    // =========================
+    const { userId } = await auth();
+
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
     }
 
-    // 🧑‍💻 user
+    // =========================
+    // USER
+    // =========================
     const user = await db.user.findUnique({
-      where: { clerkId: userId },
+      where: {
+        clerkId: userId,
+      },
     });
 
-    if (!user || !user.email) {
-      return NextResponse.json({ error: "No email" }, { status: 400 });
+    if (!user) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
     }
 
-    // 💳 إنشاء session
-    const session = await stripe.checkout.sessions.create({
-      mode: "subscription",
-      customer_email: user.email,
+    if (!user.email) {
+      return NextResponse.json(
+        { error: "No email found" },
+        { status: 400 }
+      );
+    }
 
-      line_items: [
+    if (!user.customerId) {
+      return NextResponse.json(
+        { error: "Missing Paddle customerId" },
+        { status: 400 }
+      );
+    }
+
+    // =========================
+    // GET PLAN
+    // =========================
+    const body = await req.json();
+
+    const plan = body?.plan;
+
+    // =========================
+    // PRICE ID
+    // =========================
+    const priceId =
+      plan === "premium"
+        ? process.env.PADDLE_PREMIUM_KEY
+        : process.env.PADDLE_PRO_KEY;
+
+    if (!priceId) {
+      return NextResponse.json(
+        { error: "Missing Paddle Price ID" },
+        { status: 500 }
+      );
+    }
+
+    // =========================
+    // CREATE TRANSACTION
+    // =========================
+    const transaction = await paddle.transactions.create({
+      items: [
         {
-          price: process.env.STRIPE_PRICE_ID!,
+          priceId,
           quantity: 1,
         },
       ],
 
-      success_url: "http://localhost:3000/dashboard",
-      cancel_url: "http://localhost:3000/ai-image",
+      customerId: user.customerId,
 
-      metadata: {
+      customData: {
         userId,
+        plan,
       },
     });
 
-    // 💾 حفظ abandoned checkout
-    await db.abandonedCheckout.create({
-      data: {
-        userId,
-        email: user.email,
-        checkoutUrl: session.url!,
-        stripeSessionId: session.id,
-      },
+    // =========================
+    // CHECKOUT URL
+    // =========================
+    const checkoutUrl = transaction.checkout?.url;
+
+    if (!checkoutUrl) {
+      return NextResponse.json(
+        { error: "Failed to create checkout URL" },
+        { status: 500 }
+      );
+    }
+
+    // =========================
+    // SAVE ABANDONED CHECKOUT
+    // =========================
+    try {
+      await db.abandonedCheckout.create({
+        data: {
+          userId,
+          email: user.email,
+          checkoutUrl,
+          transactionId: transaction.id,
+        },
+      });
+    } catch (dbError) {
+      console.log("DB error ignored:", dbError);
+    }
+
+    // =========================
+    // RETURN URL
+    // =========================
+    return NextResponse.json({
+      url: checkoutUrl,
     });
 
-    return NextResponse.json({ url: session.url });
-  } catch (error) {
-    console.error("Checkout error:", error);
+  } catch (error: any) {
+    console.error("🔥 CHECKOUT ERROR:", error);
+
     return NextResponse.json(
-      { error: "Something went wrong" },
+      {
+        error: error?.message || "Internal Server Error",
+      },
       { status: 500 }
     );
   }
