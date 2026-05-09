@@ -1,110 +1,63 @@
 import { NextResponse } from "next/server";
+import Stripe from "stripe";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { Paddle } from "@paddle/paddle-node-sdk";
 
-// =========================
-// SAFE INIT (no crash build)
-// =========================
-const paddleApiKey = process.env.PADDLE_API_KEY || "";
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: "2026-03-25.dahlia",
+});
 
-const paddle = new Paddle(paddleApiKey);
-
-export async function POST(req: Request) {
+export async function POST() {
   try {
-    const { userId } = await auth();
-
+    const { userId } = await await auth();
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { plan } = await req.json();
-
-    if (!plan) {
-      return NextResponse.json({ error: "Missing plan" }, { status: 400 });
-    }
-
+    // 🧑‍💻 user
     const user = await db.user.findUnique({
       where: { clerkId: userId },
     });
 
-    if (!user?.email || !user?.customerId) {
-      return NextResponse.json(
-        { error: "User missing data" },
-        { status: 400 }
-      );
+    if (!user || !user.email) {
+      return NextResponse.json({ error: "No email" }, { status: 400 });
     }
 
-    // =========================
-    // FIX: proper env names
-    // =========================
-    const priceId =
-      plan === "pro"
-        ? process.env.PADDLE_PRICE_PRO
-        : process.env.PADDLE_PRICE_PREMIUM;
+    // 💳 إنشاء session
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      customer_email: user.email,
 
-    if (!priceId) {
-      return NextResponse.json(
-        { error: "Missing PRICE_ID" },
-        { status: 500 }
-      );
-    }
-
-    // =========================
-    // CREATE TRANSACTION
-    // =========================
-    const transaction = await paddle.transactions.create({
-      items: [
+      line_items: [
         {
-          priceId,
+          price: process.env.STRIPE_PRICE_ID!,
           quantity: 1,
         },
       ],
-      customerId: user.customerId,
-      customData: {
+
+      success_url: "http://localhost:3000/dashboard",
+      cancel_url: "http://localhost:3000/ai-image",
+
+      metadata: {
         userId,
-        plan,
       },
     });
 
-    // =========================
-    // FIX: safe checkout URL
-    // =========================
-    const checkoutUrl =
-      (transaction as any)?.checkout?.url ||
-      (transaction as any)?.checkout_url ||
-      (transaction as any)?.url;
+    // 💾 حفظ abandoned checkout
+    await db.abandonedCheckout.create({
+      data: {
+        userId,
+        email: user.email,
+        checkoutUrl: session.url!,
+        stripeSessionId: session.id,
+      },
+    });
 
-    if (!checkoutUrl) {
-      return NextResponse.json(
-        { error: "Checkout URL not found" },
-        { status: 500 }
-      );
-    }
-
-    // =========================
-    // DB (safe)
-    // =========================
-    try {
-      await db.abandonedCheckout.create({
-        data: {
-          userId,
-          email: user.email,
-          checkoutUrl,
-          transactionId: transaction.id,
-        },
-      });
-    } catch (e) {
-      console.log("DB ignored:", e);
-    }
-
-    return NextResponse.json({ url: checkoutUrl });
-
-  } catch (error: any) {
-    console.error("CHECKOUT ERROR:", error);
-
+    return NextResponse.json({ url: session.url });
+  } catch (error) {
+    console.error("Checkout error:", error);
     return NextResponse.json(
-      { error: error.message || "Server error" },
+      { error: "Something went wrong" },
       { status: 500 }
     );
   }
