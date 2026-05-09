@@ -6,6 +6,23 @@ type Plan = "pro" | "premium";
 type Method = "USDT" | "BARIDIMOB";
 type Color = "green" | "blue";
 
+type PaymentBoxProps = {
+  active: boolean;
+  onClick: () => void;
+  title: string;
+  value: string;
+  copied: boolean;
+  onCopy: (e: React.MouseEvent) => void;
+  color: Color;
+};
+
+type CardProps = {
+  title: string;
+  price: string;
+  sub: string;
+  onClick: () => void;
+};
+
 export default function PricingPage() {
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [paymentInfo, setPaymentInfo] = useState({ rip: "", usdt: "" });
@@ -55,6 +72,8 @@ export default function PricingPage() {
       }
 
       window.location.href = data.url;
+    } catch {
+      alert("❌ Checkout failed");
     } finally {
       setLoadingCheckout(false);
     }
@@ -114,7 +133,6 @@ export default function PricingPage() {
             {priceText}
           </p>
 
-          {/* PAY BUTTON */}
           <button
             onClick={() => goToCheckout(selectedPlan)}
             disabled={loadingCheckout}
@@ -135,7 +153,7 @@ export default function PricingPage() {
               title="USDT"
               value={paymentInfo.usdt}
               copied={copied === "usdt"}
-              onCopy={(e: any) => {
+              onCopy={(e) => {
                 e.stopPropagation();
                 copy(paymentInfo.usdt, "usdt");
               }}
@@ -148,7 +166,7 @@ export default function PricingPage() {
               title="BaridiMob"
               value={paymentInfo.rip}
               copied={copied === "rip"}
-              onCopy={(e: any) => {
+              onCopy={(e) => {
                 e.stopPropagation();
                 copy(paymentInfo.rip, "rip");
               }}
@@ -174,24 +192,19 @@ function PaymentBox({
   copied,
   onCopy,
   color,
-}: {
-  active: boolean;
-  onClick: () => void;
-  title: string;
-  value: string;
-  copied: boolean;
-  onCopy: (e: any) => void;
-  color: Color;
-}) {
-  const styles: Record<"green" | "blue", string> = {
-  green: "border-green-500 bg-green-500/20",
-  blue: "border-blue-500 bg-blue-500/20",
+}: PaymentBoxProps) {
+
+  const styles: Record<Color, string> = {
+    green: "border-green-500 bg-green-500/20",
+    blue: "border-blue-500 bg-blue-500/20",
   };
 
   return (
     <div
       onClick={onClick}
-      className={`p-4 rounded-xl text-center cursor-pointer border transition ${styles[color]}`}
+      className={`p-4 rounded-xl text-center cursor-pointer border transition ${
+        active ? styles[color] : "border-white/10"
+      }`}
     >
       <p className="text-sm mb-2">{title}</p>
       <p className="text-xs break-all mb-2">{value}</p>
@@ -208,17 +221,7 @@ function PaymentBox({
 
 /* ================= CARD ================= */
 
-function Card({
-  title,
-  price,
-  sub,
-  onClick,
-}: {
-  title: string;
-  price: string;
-  sub: string;
-  onClick: () => void;
-}) {
+function Card({ title, price, sub, onClick }: CardProps) {
   return (
     <div className="p-8 rounded-2xl border border-white/10 bg-white/5">
       <h2 className="text-2xl font-bold mb-2">{title}</h2>
