@@ -9,7 +9,6 @@ export default function PricingPage() {
   const [paymentInfo, setPaymentInfo] = useState({ rip: "", usdt: "" });
   const [method, setMethod] = useState<"USDT" | "BARIDIMOB" | null>(null);
   const [copied, setCopied] = useState<"usdt" | "rip" | null>(null);
-  const [uploading, setUploading] = useState(false);
   const [loadingCheckout, setLoadingCheckout] = useState(false);
 
   useEffect(() => {
@@ -35,6 +34,9 @@ export default function PricingPage() {
     setTimeout(() => setCopied(null), 2000);
   };
 
+  // =========================
+  // Paddle Checkout (FIXED)
+  // =========================
   const goToCheckout = async (plan: "pro" | "premium") => {
     try {
       setLoadingCheckout(true);
@@ -44,7 +46,7 @@ export default function PricingPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify({ plan }), // ✔ مهم جدًا
       });
 
       const data = await res.json();
@@ -54,7 +56,7 @@ export default function PricingPage() {
         return;
       }
 
-      window.location.assign(data.url);
+      window.location.href = data.url; // ✔ أفضل من assign
 
     } catch (err) {
       console.error(err);
@@ -87,6 +89,7 @@ export default function PricingPage() {
         🎬 Try 1 Free Video
       </button>
 
+      {/* PLANS */}
       <div className="grid md:grid-cols-2 gap-8 w-full max-w-4xl">
 
         <Card
@@ -112,6 +115,7 @@ export default function PricingPage() {
 
       </div>
 
+      {/* MODAL */}
       {selectedPlan && (
         <Modal>
           <h2 className="text-xl font-bold text-center mb-2">
@@ -122,18 +126,22 @@ export default function PricingPage() {
             {priceText}
           </p>
 
+          {/* PADDLE BUTTON */}
           <button
             onClick={() => goToCheckout(selectedPlan)}
             disabled={loadingCheckout}
             className="w-full bg-cyan-500 hover:bg-cyan-400 py-3 rounded-xl text-black font-bold mb-4 transition"
           >
-            {loadingCheckout ? "Processing..." : "💳 Pay with Card (Powered by Paddle)"}
+            {loadingCheckout
+              ? "Processing..."
+              : "💳 Pay with Card (Powered by Paddle)"}
           </button>
 
           <p className="text-xs text-yellow-400 text-center mb-2">
             Or choose manual payment 👇
           </p>
 
+          {/* MANUAL PAYMENT */}
           <div className="grid grid-cols-2 gap-4">
 
             <PaymentBox
@@ -180,16 +188,8 @@ function PaymentBox({
   copied,
   onCopy,
   color,
-}: {
-  active: boolean;
-  onClick: () => void;
-  title: string;
-  value: string;
-  copied: boolean;
-  onCopy: (e: any) => void;
-  color: Color;
-}) {
-  const styles: Record<Color, string> = {
+}: any) {
+  const styles = {
     green: active ? "border-green-500 bg-green-500/20" : "border-white/10",
     blue: active ? "border-blue-500 bg-blue-500/20" : "border-white/10",
   };
@@ -215,12 +215,15 @@ function PaymentBox({
 
 function Card({ title, price, sub, children, onClick, highlight }: any) {
   return (
-    <div className={`p-8 rounded-2xl border ${
-      highlight ? "border-cyan-500" : "border-white/10"
-    } bg-white/5`}>
+    <div
+      className={`p-8 rounded-2xl border ${
+        highlight ? "border-cyan-500" : "border-white/10"
+      } bg-white/5`}
+    >
       <h2 className="text-2xl font-bold mb-4">{title}</h2>
       <p className="text-3xl font-bold mb-2">{price}</p>
       {sub && <p className="text-gray-400 text-sm mb-4">{sub}</p>}
+
       <ul className="text-gray-300 space-y-2 mb-6">{children}</ul>
 
       <button

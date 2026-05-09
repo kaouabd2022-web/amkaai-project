@@ -12,7 +12,7 @@ if (!process.env.PADDLE_API_KEY) {
 
 const paddle = new Paddle(process.env.PADDLE_API_KEY!);
 
-export async function POST() {
+export async function POST(req: Request) {
   try {
     const { userId } = await auth();
 
@@ -29,7 +29,7 @@ export async function POST() {
 
     if (!user) {
       return NextResponse.json(
-        { error: "User not found in DB" },
+        { error: "User not found" },
         { status: 404 }
       );
     }
@@ -48,19 +48,19 @@ export async function POST() {
       );
     }
 
-    const priceId = process.env.PADDLE_PRICE_ID;
-    const baseUrl = process.env.NEXT_PUBLIC_URL;
+    // =========================
+    // 🔥 NEW: get plan from frontend
+    // =========================
+    const { plan } = await req.json();
+
+    const priceId =
+      plan === "pro"
+        ? process.env.PADDLE_PRO_KEY
+        : process.env.PADDLE_PREMIUM_KEY;
 
     if (!priceId) {
       return NextResponse.json(
-        { error: "Missing PADDLE_PRICE_ID" },
-        { status: 500 }
-      );
-    }
-
-    if (!baseUrl) {
-      return NextResponse.json(
-        { error: "Missing NEXT_PUBLIC_URL" },
+        { error: "Missing Paddle Price ID" },
         { status: 500 }
       );
     }
@@ -75,39 +75,50 @@ export async function POST() {
           quantity: 1,
         },
       ],
-
       customerId: user.customerId,
-
       customData: {
         userId,
+        plan,
       },
     });
 
     // =========================
-    // Save Checkout (non-blocking)
+    // Get checkout URL
+    // =========================
+    const checkoutUrl = transaction.checkout?.url;
+
+    if (!checkoutUrl) {
+      return NextResponse.json(
+        { error: "Failed to create checkout URL" },
+        { status: 500 }
+      );
+    }
+
+    // =========================
+    // Save abandoned checkout (safe)
     // =========================
     try {
       await db.abandonedCheckout.create({
         data: {
           userId,
           email: user.email,
-          checkoutUrl: `${baseUrl}/dashboard`,
-          transactionId: transaction.id, // ✔️ FIXED HERE
+          checkoutUrl,
+          transactionId: transaction.id,
         },
       });
-    } catch (dbError) {
-      console.log("DB error ignored:", dbError);
+    } catch (e) {
+      console.log("DB error ignored:", e);
     }
 
     // =========================
-    // Response
+    // Return checkout URL
     // =========================
     return NextResponse.json({
-      url: `${baseUrl}/dashboard`,
+      url: checkoutUrl,
     });
 
   } catch (error: any) {
-    console.error("🔥 FULL PADDLE CHECKOUT ERROR:", error);
+    console.error("🔥 CHECKOUT ERROR:", error);
 
     return NextResponse.json(
       {
