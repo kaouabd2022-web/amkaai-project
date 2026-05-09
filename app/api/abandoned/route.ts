@@ -1,15 +1,24 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { sendAbandonedEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST() {
   try {
+    // =========================
+    // IMPORT INSIDE FUNCTION
+    // =========================
+    const { db } = await import("@/lib/db");
+    const { sendAbandonedEmail } = await import("@/lib/email");
 
+    // =========================
+    // 30 MINUTES LIMIT
+    // =========================
     const limit = new Date(Date.now() - 1000 * 60 * 30);
 
+    // =========================
+    // GET ABANDONED CHECKOUTS
+    // =========================
     const list = await db.abandonedCheckout.findMany({
       where: {
         createdAt: {
@@ -21,13 +30,26 @@ export async function POST() {
 
     let sent = 0;
 
-    for (const item of list) {
+    // =========================
+    // LOOP
+    // =========================
+    for (const item of list ?? []) {
       try {
-
         if (!item.email || !item.checkoutUrl) {
           continue;
         }
 
+        // =========================
+        // SEND EMAIL
+        // =========================
+        await sendAbandonedEmail({
+          email: item.email,
+          checkoutUrl: item.checkoutUrl,
+        });
+
+        // =========================
+        // UPDATE STATUS
+        // =========================
         await db.abandonedCheckout.update({
           where: {
             id: item.id,
@@ -37,11 +59,6 @@ export async function POST() {
           },
         });
 
-        await sendAbandonedEmail({
-          email: item.email,
-          checkoutUrl: item.checkoutUrl,
-        });
-
         sent++;
 
       } catch (innerError) {
@@ -49,6 +66,9 @@ export async function POST() {
       }
     }
 
+    // =========================
+    // SUCCESS
+    // =========================
     return NextResponse.json({
       success: true,
       sent,
