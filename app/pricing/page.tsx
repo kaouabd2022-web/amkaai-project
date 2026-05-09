@@ -116,7 +116,6 @@ export default function PricingPage() {
             {priceText}
           </p>
 
-          {/* PAY BUTTON */}
           <button
             onClick={() => goToCheckout(selectedPlan)}
             disabled={loadingCheckout}
@@ -185,19 +184,17 @@ function PaymentBox({
   onCopy: (e: React.MouseEvent) => void;
   color: Color;
 }) {
-  const styles = {
+  const styles: Record<Color, string> = {
     green: "border-green-500 bg-green-500/20",
     blue: "border-blue-500 bg-blue-500/20",
-  } as const;
+  };
 
-  const colorClass = styles[color];
+  const className = active ? styles[color] : "border-white/10";
 
   return (
     <div
       onClick={onClick}
-      className={`p-4 rounded-xl text-center cursor-pointer border transition ${
-        active ? colorClass : "border-white/10"
-      }`}
+      className={`p-4 rounded-xl text-center cursor-pointer border transition ${className}`}
     >
       <p className="text-sm mb-2">{title}</p>
       <p className="text-xs break-all mb-2">{value}</p>
