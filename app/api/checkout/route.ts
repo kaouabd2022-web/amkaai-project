@@ -11,13 +11,9 @@ if (!process.env.PADDLE_API_KEY) {
 }
 
 // =========================
-// INIT PADDLE
+// INIT PADDLE (FIXED)
 // =========================
-const paddle = new Paddle({
-  apiKey: process.env.PADDLE_API_KEY,
-  environment:
-    process.env.NODE_ENV === "production" ? "production" : "sandbox",
-});
+const paddle = new Paddle(process.env.PADDLE_API_KEY);
 
 export async function POST(req: Request) {
   try {
@@ -27,11 +23,14 @@ export async function POST(req: Request) {
     const { userId } = await auth();
 
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
     }
 
     // =========================
-    // GET USER
+    // USER
     // =========================
     const user = await db.user.findUnique({
       where: { clerkId: userId },
@@ -52,10 +51,9 @@ export async function POST(req: Request) {
     }
 
     // =========================
-    // BODY (PLAN)
+    // BODY
     // =========================
-    const body = await req.json();
-    const plan = body?.plan;
+    const { plan } = await req.json();
 
     if (!plan) {
       return NextResponse.json(
@@ -80,7 +78,7 @@ export async function POST(req: Request) {
     }
 
     // =========================
-    // CREATE TRANSACTION
+    // CREATE CHECKOUT (SAFE METHOD)
     // =========================
     const transaction = await paddle.transactions.create({
       items: [
@@ -89,21 +87,13 @@ export async function POST(req: Request) {
           quantity: 1,
         },
       ],
-
-      customerId: user.customerId,
-
       customData: {
         userId,
         plan,
       },
     });
 
-    // =========================
-    // GET CHECKOUT URL
-    // =========================
-    const checkoutUrl =
-      transaction?.checkout?.url ||
-      (transaction as any)?.checkoutUrl;
+    const checkoutUrl = transaction?.checkout?.url;
 
     if (!checkoutUrl) {
       return NextResponse.json(
@@ -128,9 +118,6 @@ export async function POST(req: Request) {
       console.log("DB warning ignored:", err);
     }
 
-    // =========================
-    // RETURN
-    // =========================
     return NextResponse.json({
       url: checkoutUrl,
     });
