@@ -8,6 +8,7 @@ const isPublicRoute = createRouteMatcher([
 ]);
 
 export default clerkMiddleware((auth, req) => {
+  // 🔒 هذا هو الشكل الصحيح للحماية
   if (!isPublicRoute(req)) {
     auth().protect();
   }
