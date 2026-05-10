@@ -7,17 +7,31 @@ export async function GET() {
   // ⚠️ تنبيه لو القيم غير موجودة
   if (!rip || !usdt) {
     console.warn("⚠️ Missing payment env variables");
+
+    return NextResponse.json(
+      {
+        rip: rip || "",
+        usdt: usdt || "",
+        warning: "Missing payment configuration",
+      },
+      {
+        status: 200,
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
+    );
   }
 
   return NextResponse.json(
     {
-      rip: rip || "",
-      usdt: usdt || "",
+      rip,
+      usdt,
     },
     {
       status: 200,
       headers: {
-        "Cache-Control": "no-store", // 🔥 مهم
+        "Cache-Control": "no-store",
       },
     }
   );
