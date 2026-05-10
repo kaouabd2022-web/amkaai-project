@@ -1,112 +1,83 @@
 "use client";
 
 import Link from "next/link";
-import Script from "next/script";
 import { motion } from "framer-motion";
-import {
-  Sparkles,
-  Mic,
-  Video,
-  BarChart,
-  CreditCard,
-  Bitcoin,
-  Wallet,
-} from "lucide-react";
+import { Sparkles, Video, Mic, BarChart } from "lucide-react";
 import { useEffect, useState } from "react";
-import AIGallery from "@/components/ai-gallery";
-
-declare global {
-  interface Window {
-    Paddle: any;
-  }
-}
 
 export default function Home() {
-  const [particles, setParticles] = useState<
-    { top: number; left: number }[]
-  >([]);
+  const [visitors, setVisitors] = useState(0);
+  const [loadingPlan, setLoadingPlan] = useState<"pro" | "premium" | null>(null);
+  const [online, setOnline] = useState(0);
+
+  const [particles, setParticles] = useState<{ top: number; left: number }[]>(
+    []
+  );
 
   useEffect(() => {
-    const generated = Array.from({ length: 20 }).map(() => ({
-      top: Math.random() * 100,
-      left: Math.random() * 100,
-    }));
+    // particles
+    setParticles(
+      Array.from({ length: 30 }).map(() => ({
+        top: Math.random() * 100,
+        left: Math.random() * 100,
+      }))
+    );
 
-    setParticles(generated);
-
-    // ✅ Paddle Initialize
-    if (typeof window !== "undefined" && window.Paddle) {
-      window.Paddle.Environment.set("sandbox"); // change to production later
-
-      window.Paddle.Initialize({
-        token: process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN!,
-      });
-    }
+    // visitors API
+    fetch("/api/visitors")
+      .then((res) => res.json())
+      .then((data) => {
+        setVisitors(data.visitors);
+        setOnline(data.online || 0);
+      })
+      .catch(() => {});
   }, []);
 
-  // ✅ PRO Checkout
-  const buyPro = () => {
-    if (!window.Paddle) {
-      alert("Paddle not loaded");
-      return;
+  const goToCheckout = async (plan: "pro" | "premium") => {
+    try {
+      setLoadingPlan(plan);
+
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan }),
+      });
+
+      const data = await res.json();
+
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        alert("Checkout failed");
+      }
+    } finally {
+      setLoadingPlan(null);
     }
-
-    window.Paddle.Checkout.open({
-      items: [
-        {
-          priceId: process.env.NEXT_PUBLIC_PADDLE_PRICE_PRO!,
-          quantity: 1,
-        },
-      ],
-    });
-  };
-
-  // ✅ PREMIUM Checkout
-  const buyPremium = () => {
-    if (!window.Paddle) {
-      alert("Paddle not loaded");
-      return;
-    }
-
-    window.Paddle.Checkout.open({
-      items: [
-        {
-          priceId: process.env.NEXT_PUBLIC_PADDLE_PRICE_PREMIUM!,
-          quantity: 1,
-        },
-      ],
-    });
   };
 
   return (
     <main className="min-h-screen bg-black text-white relative overflow-hidden">
 
-      {/* ✅ Paddle Script */}
-      <Script
-        src="https://cdn.paddle.com/paddle/v2/paddle.js"
-        strategy="beforeInteractive"
-      />
-
-      {/* 🌊 Background */}
-      <div className="absolute inset-0 -z-10 opacity-40">
-        <div className="absolute w-[800px] h-[800px] bg-cyan-500/20 blur-[140px] top-[-200px] left-[-200px]" />
-        <div className="absolute w-[800px] h-[800px] bg-purple-500/20 blur-[140px] bottom-[-200px] right-[-200px]" />
+      {/* 🌈 Background */}
+      <div className="absolute inset-0 -z-10">
+        <div className="absolute w-[800px] h-[800px] bg-purple-600/20 blur-[160px] top-[-200px] left-[-200px]" />
+        <div className="absolute w-[800px] h-[800px] bg-cyan-500/20 blur-[160px] bottom-[-200px] right-[-200px]" />
       </div>
 
       {/* ✨ Particles */}
-      <div className="pointer-events-none absolute inset-0 -z-10">
+      <div className="absolute inset-0 -z-10">
         {particles.map((p, i) => (
           <span
             key={i}
-            className="absolute w-1 h-1 bg-white/30 rounded-full animate-pulse"
+            className="absolute w-1 h-1 bg-white/20 rounded-full animate-pulse"
             style={{ top: `${p.top}%`, left: `${p.left}%` }}
           />
         ))}
       </div>
 
-      {/* 🔝 NAV */}
-      <nav className="sticky top-0 z-50 flex justify-between items-center px-8 py-5 border-b border-white/10 backdrop-blur-xl bg-black/40">
-        <h1 className="text-xl font-bold tracking-wide">amkaai</h1>
+      {/* NAV */}
+      <nav className="flex justify-between items-center px-8 py-5 border-b border-white/10 backdrop-blur-xl bg-black/40 sticky top-0 z-50">
+        <h1 className="text-xl font-bold">amkaai</h1>
 
         <div className="flex gap-6 text-gray-300">
           <Link href="/dashboard">Dashboard</Link>
@@ -114,152 +85,137 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* 🎥 HERO */}
-      <section className="relative text-center py-28 px-6">
+      {/* HERO */}
+      <section className="text-center py-28 px-6">
 
-        <video
-          autoPlay
-          muted
-          loop
-          playsInline
-          className="absolute inset-0 w-full h-full object-cover opacity-20"
+        <motion.h1
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-5xl md:text-7xl font-bold bg-gradient-to-r from-purple-400 via-cyan-400 to-pink-400 text-transparent bg-clip-text"
         >
-          <source src="/demo.mp4" />
-        </video>
+          Create AI Content <br /> Like a Pro Studio
+        </motion.h1>
 
-        <div className="relative z-10">
+        <p className="mt-6 text-gray-400 text-lg">
+          Images • Voice • Video — powered by AI
+        </p>
 
-          <motion.h1
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-5xl md:text-7xl font-bold gradient-text"
+        {/* STATS */}
+        <div className="mt-10 flex justify-center gap-6 flex-wrap">
+
+          <div className="px-6 py-4 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl text-center">
+            <p className="text-2xl font-bold text-cyan-400">
+              {visitors}+
+            </p>
+            <p className="text-gray-400 text-sm">Visitors</p>
+          </div>
+
+          <div className="px-6 py-4 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl text-center">
+            <p className="text-2xl font-bold text-purple-400">
+              {online}
+            </p>
+            <p className="text-gray-400 text-sm">Online now</p>
+          </div>
+
+        </div>
+
+        {/* CTA */}
+        <div className="mt-10 flex justify-center gap-4 flex-wrap">
+
+          <Link
+            href="/dashboard"
+            className="px-8 py-4 rounded-2xl bg-white text-black font-semibold hover:scale-105 transition"
           >
-            Create AI Content <br /> That Feels Alive
-          </motion.h1>
-
-          <p className="mt-6 text-gray-400 text-lg">
-            Images, Voices, Videos — powered by AI
-          </p>
-
-          <p className="mt-4 text-yellow-400 font-semibold animate-pulse">
-            ⚡ Only today: 20% OFF
-          </p>
-
-          <div className="mt-10 flex justify-center gap-4 flex-wrap">
-
-            <Link
-              href="/dashboard"
-              className="btn-primary px-10 py-4 rounded-2xl font-semibold"
-            >
-              Start Free →
-            </Link>
-
-            <Link
-              href="/pricing"
-              className="px-8 py-4 rounded-2xl border border-white/20 hover:border-white transition"
-            >
-              Pricing
-            </Link>
-
-            <button
-              onClick={buyPro}
-              className="px-8 py-4 rounded-2xl bg-yellow-500 text-black font-bold hover:scale-105 transition"
-            >
-              Upgrade Pro 🚀
-            </button>
-
-          </div>
-        </div>
-      </section>
-
-      {/* 💳 PAYMENT METHODS */}
-      <section className="px-8 pb-16 text-center">
-
-        <h2 className="text-2xl font-bold mb-6">
-          Secure Payments via Paddle
-        </h2>
-
-        <div className="flex justify-center flex-wrap gap-6 text-gray-300">
-
-          <div className="glass px-6 py-4 rounded-xl flex items-center gap-2">
-            <CreditCard size={18} /> Cards
-          </div>
-
-          <div className="glass px-6 py-4 rounded-xl flex items-center gap-2">
-            <Bitcoin size={18} /> Crypto
-          </div>
-
-          <div className="glass px-6 py-4 rounded-xl flex items-center gap-2">
-            <Wallet size={18} /> Global Checkout
-          </div>
-
-        </div>
-
-        <div className="mt-6">
+            Start Free
+          </Link>
 
           <button
-            onClick={buyPremium}
-            className="px-8 py-3 rounded-xl bg-purple-500 text-white font-bold hover:scale-105 transition"
+            onClick={() => goToCheckout("pro")}
+            className="px-8 py-4 rounded-2xl bg-gradient-to-r from-purple-500 to-cyan-500 font-bold hover:scale-105 transition shadow-[0_0_30px_rgba(139,92,246,0.4)]"
           >
-            Upgrade Premium 💎
+            Upgrade Pro ⚡
           </button>
 
         </div>
       </section>
 
-      {/* 🧠 TRUST */}
-      <section className="text-center text-gray-500 mb-10">
-        Trusted by 1,000+ creators worldwide
+      {/* PRICING */}
+      <section className="px-8 pb-24 grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+
+        {/* PRO */}
+        <div className="p-8 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl hover:scale-105 transition">
+
+          <h2 className="text-2xl font-bold">Pro</h2>
+          <p className="text-gray-400 mt-2">Best for creators</p>
+
+          <p className="text-4xl font-bold mt-6">$15</p>
+
+          <ul className="text-gray-400 mt-4 space-y-2">
+            <li>✔ 150 credits</li>
+            <li>✔ Fast generation</li>
+          </ul>
+
+          <button
+            onClick={() => goToCheckout("pro")}
+            className="mt-6 w-full py-3 rounded-xl bg-white text-black font-bold"
+          >
+            {loadingPlan === "pro" ? "Processing..." : "Choose Pro"}
+          </button>
+
+        </div>
+
+        {/* PREMIUM */}
+        <div className="p-8 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl hover:scale-105 transition">
+
+          <h2 className="text-2xl font-bold">Premium</h2>
+          <p className="text-gray-400 mt-2">Ultra performance</p>
+
+          <p className="text-4xl font-bold mt-6">$25</p>
+
+          <ul className="text-gray-400 mt-4 space-y-2">
+            <li>✔ 500 credits</li>
+            <li>✔ Ultra fast AI</li>
+          </ul>
+
+          <button
+            onClick={() => goToCheckout("premium")}
+            className="mt-6 w-full py-3 rounded-xl bg-gradient-to-r from-purple-500 to-cyan-500 font-bold"
+          >
+            {loadingPlan === "premium" ? "Processing..." : "Choose Premium"}
+          </button>
+
+        </div>
+
       </section>
 
-      {/* 🧠 FEATURES */}
+      {/* FEATURES */}
       <section className="grid md:grid-cols-4 gap-6 px-8 pb-20">
 
-        <Feature
-          title="AI Image"
-          desc="Generate stunning images"
-          icon={<Sparkles />}
-          link="/ai-image"
-        />
-
-        <Feature
-          title="AI Voice"
-          desc="Text → realistic voice"
-          icon={<Mic />}
-          link="/ai-voice"
-        />
-
-        <Feature
-          title="AI Video"
-          desc="Create cinematic videos"
-          icon={<Video />}
-          link="/ai-video"
-        />
-
-        <Feature
-          title="Dashboard"
-          desc="Manage everything"
-          icon={<BarChart />}
-          link="/dashboard"
-        />
+        <Feature icon={<Sparkles />} title="AI Image" />
+        <Feature icon={<Mic />} title="AI Voice" />
+        <Feature icon={<Video />} title="AI Video" />
+        <Feature icon={<BarChart />} title="Dashboard" />
 
       </section>
 
-      <AIGallery />
+      {/* LOADING */}
+      {loadingPlan && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50">
+          <p className="text-white text-xl animate-pulse">
+            Redirecting to secure checkout...
+          </p>
+        </div>
+      )}
+
     </main>
   );
 }
 
-function Feature({ title, desc, icon, link }: any) {
+function Feature({ icon, title }: any) {
   return (
-    <motion.div whileHover={{ scale: 1.05 }}>
-      <Link href={link} className="glass p-6 rounded-2xl block">
-        <div className="text-cyan-400 mb-4">{icon}</div>
-
-        <h3 className="text-lg font-semibold">{title}</h3>
-
-        <p className="text-gray-400">{desc}</p>
-      </Link>
-    </motion.div>
+    <div className="p-6 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl text-center hover:scale-105 transition">
+      <div className="text-cyan-400 mb-3 flex justify-center">{icon}</div>
+      <h3 className="font-semibold">{title}</h3>
+    </div>
   );
 }
