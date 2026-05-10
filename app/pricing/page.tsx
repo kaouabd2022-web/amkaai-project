@@ -49,7 +49,7 @@ export default function PricingPage() {
       const data = await res.json();
 
       if (!data?.url) {
-        alert("❌ Stripe error");
+        alert("❌ Checkout error"); // ✅ تم التعديل هنا فقط
         return;
       }
 
@@ -72,7 +72,6 @@ export default function PricingPage() {
       <h1 className="text-5xl font-bold mb-4">Create AI Videos 🚀</h1>
       <p className="text-gray-400 mb-12">No free plan. Real power starts here.</p>
 
-      {/* 🔥 TRY BUTTON */}
       <button
         onClick={() => window.location.href = "/dashboard"}
         className="mb-10 bg-white text-black px-6 py-3 rounded-xl font-bold hover:scale-105 transition"
@@ -105,7 +104,6 @@ export default function PricingPage() {
 
       </div>
 
-      {/* 💰 PAYMENT */}
       {selectedPlan && (
         <Modal>
 
@@ -117,7 +115,6 @@ export default function PricingPage() {
             {priceText}
           </p>
 
-          {/* 💳 STRIPE */}
           <button
             onClick={() => goToCheckout(selectedPlan)}
             disabled={loadingCheckout}
@@ -134,7 +131,6 @@ export default function PricingPage() {
 
           <div className="grid grid-cols-2 gap-4">
 
-            {/* USDT */}
             <PaymentBox
               active={method === "USDT"}
               onClick={() => setMethod("USDT")}
@@ -148,7 +144,6 @@ export default function PricingPage() {
               color="green"
             />
 
-            {/* BARIDIMOB */}
             <PaymentBox
               active={method === "BARIDIMOB"}
               onClick={() => setMethod("BARIDIMOB")}
@@ -164,7 +159,6 @@ export default function PricingPage() {
 
           </div>
 
-          {/* 📸 Upload */}
           <div className="mt-4 bg-white/5 p-4 rounded-xl border border-white/10">
             <p className="text-sm mb-2 text-center">
               📸 Upload Screenshot
@@ -239,7 +233,6 @@ export default function PricingPage() {
   );
 }
 
-/* 🔹 Payment Box */
 function PaymentBox({ active, onClick, title, value, copied, onCopy, color }: any) {
   return (
     <div
@@ -271,7 +264,6 @@ function PaymentBox({ active, onClick, title, value, copied, onCopy, color }: an
   );
 }
 
-/* CARD */
 function Card({ title, price, sub, children, onClick, highlight }: any) {
   return (
     <div className={`p-8 rounded-2xl border ${
@@ -292,7 +284,6 @@ function Card({ title, price, sub, children, onClick, highlight }: any) {
   );
 }
 
-/* MODAL */
 function Modal({ children }: any) {
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">

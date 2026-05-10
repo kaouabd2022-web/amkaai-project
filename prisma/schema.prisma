@@ -15,23 +15,45 @@ model User {
   id             String   @id @default(cuid())
   clerkId        String   @unique
   email          String?  @unique
-  plan           String   @default("FREE")
+
+  plan           String   @default("free")
   credits        Int      @default(10)
 
-  customerId     String?  @unique
-  subscriptionId String?  @unique
-
   createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  images Image[]
-  videos Video[]
-  videoJobs VideoJob[]
-  voices Voice[]
-  payments Payment[]
-  usage Usage[]
+  subscriptions  Subscription[]
+  payments       Payment[]
+  images         Image[]
+  videos         Video[]
+  videoJobs      VideoJob[]
+  voices         Voice[]
+  usage          Usage[]
   abandonedCheckouts AbandonedCheckout[]
   manualPayments ManualPayment[]
-  notifications Notification[]
+  notifications  Notification[]
+}
+
+//////////////////////////////////////////////////
+// 💳 SUBSCRIPTION
+//////////////////////////////////////////////////
+
+model Subscription {
+  id                String   @id @default(cuid())
+  userId            String
+
+  paddleId          String   @unique
+  status            String
+  plan              String
+
+  currentPeriodEnd  DateTime?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
 }
 
 //////////////////////////////////////////////////
@@ -40,13 +62,17 @@ model User {
 
 model Payment {
   id        String   @id @default(cuid())
+  userId    String
+
   amount    Float
   currency  String
-  userId    String
+
   paddleId  String?  @unique
+  status    String   @default("completed")
+
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [clerkId])
+  user User @relation(fields: [userId], references: [id])
 
   @@index([userId])
 }
@@ -57,12 +83,14 @@ model Payment {
 
 model Usage {
   id        String   @id @default(cuid())
+  userId    String
+
   type      String
   cost      Int
-  userId    String
+
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [clerkId])
+  user User @relation(fields: [userId], references: [id])
 
   @@index([userId])
 }
@@ -78,7 +106,7 @@ model Image {
   userId    String
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [clerkId])
+  user User @relation(fields: [userId], references: [id])
 }
 
 //////////////////////////////////////////////////
@@ -93,7 +121,7 @@ model Video {
   userId    String
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [clerkId])
+  user User @relation(fields: [userId], references: [id])
 }
 
 //////////////////////////////////////////////////
@@ -103,14 +131,16 @@ model Video {
 model VideoJob {
   id        String   @id @default(cuid())
   userId    String
+
   prompt    String?
   status    String   @default("pending")
   priority  Int      @default(0)
   resultUrl String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [clerkId])
+  user User @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([status])
@@ -128,7 +158,7 @@ model Voice {
   userId    String
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [clerkId])
+  user User @relation(fields: [userId], references: [id])
 }
 
 //////////////////////////////////////////////////
@@ -137,17 +167,23 @@ model Voice {
 
 model AbandonedCheckout {
   id            String   @id @default(cuid())
-  userId        String
-  email         String
+  userId        String?
+
+  email         String?
+  plan          String
   checkoutUrl   String
 
-  transactionId String   @unique
+  transactionId String?  @unique
 
   recovered     Boolean  @default(false)
+  step          String   @default("checkout_started")
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [clerkId])
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId])
 }
 
 //////////////////////////////////////////////////
@@ -157,12 +193,14 @@ model AbandonedCheckout {
 model Notification {
   id        String   @id @default(cuid())
   userId    String
+
   title     String
   message   String
   read      Boolean  @default(false)
+
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [clerkId])
+  user User @relation(fields: [userId], references: [id])
 
   @@index([userId])
 }
@@ -203,7 +241,7 @@ model ManualPayment {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [clerkId])
+  user User @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([status])

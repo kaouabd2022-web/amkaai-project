@@ -4,16 +4,20 @@ import { db } from "@/lib/db";
 import { Paddle } from "@paddle/paddle-node-sdk";
 
 // =========================
-// CHECK ENV
+// ENV CHECK
 // =========================
 if (!process.env.PADDLE_API_KEY) {
   throw new Error("Missing PADDLE_API_KEY");
 }
 
 // =========================
-// PADDLE INIT
+// INIT PADDLE
 // =========================
-const paddle = new Paddle(process.env.PADDLE_API_KEY);
+const paddle = new Paddle({
+  apiKey: process.env.PADDLE_API_KEY,
+  environment:
+    process.env.NODE_ENV === "production" ? "production" : "sandbox",
+});
 
 export async function POST(req: Request) {
   try {
@@ -23,32 +27,20 @@ export async function POST(req: Request) {
     const { userId } = await auth();
 
     if (!userId) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // =========================
-    // USER
+    // GET USER
     // =========================
     const user = await db.user.findUnique({
-      where: {
-        clerkId: userId,
-      },
+      where: { clerkId: userId },
     });
 
-    if (!user) {
+    if (!user?.email) {
       return NextResponse.json(
         { error: "User not found" },
         { status: 404 }
-      );
-    }
-
-    if (!user.email) {
-      return NextResponse.json(
-        { error: "No email found" },
-        { status: 400 }
       );
     }
 
@@ -60,11 +52,17 @@ export async function POST(req: Request) {
     }
 
     // =========================
-    // GET PLAN
+    // BODY (PLAN)
     // =========================
     const body = await req.json();
-
     const plan = body?.plan;
+
+    if (!plan) {
+      return NextResponse.json(
+        { error: "Missing plan" },
+        { status: 400 }
+      );
+    }
 
     // =========================
     // PRICE ID
@@ -76,7 +74,7 @@ export async function POST(req: Request) {
 
     if (!priceId) {
       return NextResponse.json(
-        { error: "Missing Paddle Price ID" },
+        { error: "Missing priceId" },
         { status: 500 }
       );
     }
@@ -101,13 +99,15 @@ export async function POST(req: Request) {
     });
 
     // =========================
-    // CHECKOUT URL
+    // GET CHECKOUT URL
     // =========================
-    const checkoutUrl = transaction.checkout?.url;
+    const checkoutUrl =
+      transaction?.checkout?.url ||
+      (transaction as any)?.checkoutUrl;
 
     if (!checkoutUrl) {
       return NextResponse.json(
-        { error: "Failed to create checkout URL" },
+        { error: "Checkout URL not generated" },
         { status: 500 }
       );
     }
@@ -124,12 +124,12 @@ export async function POST(req: Request) {
           transactionId: transaction.id,
         },
       });
-    } catch (dbError) {
-      console.log("DB error ignored:", dbError);
+    } catch (err) {
+      console.log("DB warning ignored:", err);
     }
 
     // =========================
-    // RETURN URL
+    // RETURN
     // =========================
     return NextResponse.json({
       url: checkoutUrl,
@@ -139,9 +139,7 @@ export async function POST(req: Request) {
     console.error("🔥 CHECKOUT ERROR:", error);
 
     return NextResponse.json(
-      {
-        error: error?.message || "Internal Server Error",
-      },
+      { error: error.message || "Internal error" },
       { status: 500 }
     );
   }

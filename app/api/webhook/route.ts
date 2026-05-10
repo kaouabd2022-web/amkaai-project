@@ -1,157 +1,131 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import crypto from "crypto";
 
-export const runtime = "nodejs";
+// =========================
+// VERIFY SIGNATURE
+// =========================
+function verifySignature(rawBody: string, signature: string | null) {
+  if (!signature || !process.env.PADDLE_WEBHOOK_SECRET) return false;
+
+  const hash = crypto
+    .createHmac("sha256", process.env.PADDLE_WEBHOOK_SECRET)
+    .update(rawBody)
+    .digest("hex");
+
+  return hash === signature;
+}
 
 export async function POST(req: Request) {
-  console.log("🔥 PADDLE WEBHOOK HIT");
-
   try {
-    const event = await req.json();
-
-    console.log("📦 Event Type:", event.event_type);
+    const rawBody = await req.text();
+    const signature = req.headers.get("paddle-signature");
 
     // =========================
-    // 💰 PAYMENT COMPLETED
+    // SECURITY CHECK
     // =========================
-    if (event.event_type === "transaction.completed") {
-      const data = event.data;
+    if (!verifySignature(rawBody, signature)) {
+      console.error("❌ Invalid signature");
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+    }
 
-      const email = data?.customer?.email;
-      const userId = data?.custom_data?.userId || null;
+    const event = JSON.parse(rawBody);
 
-      const productId = data?.items?.[0]?.product?.id;
-      const transactionId = data?.id;
-      const currency = data?.currency || "USD";
-      const amount = data?.details?.totals?.grand_total
-        ? Number(data.details.totals.grand_total) / 100
-        : 0;
+    console.log("📩 EVENT:", event.event_type);
 
-      console.log("💰 Payment successful");
-
+    // =========================
+    // SWITCH EVENTS
+    // =========================
+    switch (event.event_type) {
       // =========================
-      // 🎯 PLAN LOGIC
+      // PAYMENT SUCCESS
       // =========================
-      let plan: "FREE" | "PRO" | "PREMIUM" = "FREE";
-      let credits = 10;
+      case "transaction.completed": {
+        const data = event.data;
 
-      if (productId === process.env.PADDLE_PRODUCT_PRO) {
-        plan = "PRO";
-        credits = 100;
-      }
+        const userId = data?.custom_data?.userId;
+        const plan = data?.custom_data?.plan;
 
-      if (productId === process.env.PADDLE_PRODUCT_PREMIUM) {
-        plan = "PREMIUM";
-        credits = 300;
-      }
+        if (!userId) break;
 
-      // =========================
-      // 👤 UPDATE USER
-      // =========================
-      if (userId) {
         await db.user.update({
           where: { clerkId: userId },
           data: {
-            plan,
-            credits,
+            isPro: true,
+            plan: plan || "pro",
+            paddleCustomerId: data.customer_id,
+            paddleSubscriptionId: data.subscription_id || null,
           },
         });
-      } else if (email) {
-        await db.user.updateMany({
-          where: { email },
-          data: {
-            plan,
-            credits,
-          },
-        });
+
+        console.log("✅ User upgraded:", userId);
+        break;
       }
 
       // =========================
-      // 💾 SAVE PAYMENT RECORD
+      // SUBSCRIPTION UPDATED
       // =========================
-      await db.payment.create({
-        data: {
-          amount,
-          currency,
-          userId: userId || email || "unknown",
-          paddleId: transactionId, // نحتفظ بالاسم القديم في DB إن لم تغيّره
-        },
-      });
+      case "subscription.updated": {
+        const data = event.data;
 
-      console.log(`✅ User upgraded to ${plan}`);
-    }
+        const customerId = data.customer_id;
+        const status = data.status;
 
-    // =========================
-    // ❌ SUBSCRIPTION CANCELLED
-    // =========================
-    if (
-      event.event_type === "subscription.canceled" ||
-      event.event_type === "subscription.cancelled"
-    ) {
-      const email = event?.data?.customer?.email;
-      const userId = event?.data?.custom_data?.userId;
+        const user = await db.user.findFirst({
+          where: { paddleCustomerId: customerId },
+        });
 
-      console.log("❌ Subscription cancelled");
+        if (!user) break;
 
-      if (userId) {
         await db.user.update({
-          where: { clerkId: userId },
+          where: { id: user.id },
           data: {
-            plan: "FREE",
-            credits: 10,
+            isPro: status === "active",
           },
         });
-      } else if (email) {
-        await db.user.updateMany({
-          where: { email },
-          data: {
-            plan: "FREE",
-            credits: 10,
-          },
-        });
+
+        console.log("🔄 Subscription updated:", user.id);
+        break;
       }
-    }
 
-    // =========================
-    // 🔁 SUBSCRIPTION UPDATED
-    // =========================
-    if (event.event_type === "subscription.updated") {
-      const data = event.data;
-      const email = data?.customer?.email;
+      // =========================
+      // SUBSCRIPTION CANCELED
+      // =========================
+      case "subscription.canceled": {
+        const data = event.data;
 
-      console.log("🔄 Subscription updated");
+        const customerId = data.customer_id;
 
-      if (email) {
-        await db.user.updateMany({
-          where: { email },
+        const user = await db.user.findFirst({
+          where: { paddleCustomerId: customerId },
+        });
+
+        if (!user) break;
+
+        await db.user.update({
+          where: { id: user.id },
           data: {
-            plan: "PRO",
+            isPro: false,
+            plan: "free",
           },
         });
+
+        console.log("❌ Subscription canceled:", user.id);
+        break;
       }
-    }
 
-    // =========================
-    // 🚀 TRIAL / ACTIVATION (optional)
-    // =========================
-    if (event.event_type === "subscription.created") {
-      const email = event?.data?.customer?.email;
-
-      console.log("🆕 Subscription created");
-
-      if (email) {
-        await db.user.updateMany({
-          where: { email },
-          data: {
-            plan: "PRO",
-          },
-        });
-      }
+      default:
+        console.log("ℹ️ Unhandled event:", event.event_type);
     }
 
     return NextResponse.json({ received: true });
-  } catch (error) {
-    console.error("❌ Paddle webhook error:", error);
-    return new NextResponse("Webhook Error", { status: 500 });
+
+  } catch (error: any) {
+    console.error("🔥 WEBHOOK ERROR:", error);
+
+    return NextResponse.json(
+      { error: "Webhook failed" },
+      { status: 500 }
+    );
   }
 }

@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { Paddle } from "@paddle/paddle-node-sdk";
-
-const paddle = new Paddle(process.env.PADDLE_API_KEY!);
 
 export async function POST() {
   try {
@@ -35,9 +32,8 @@ export async function POST() {
     }
 
     // =========================
-    // 🔥 TEMP BILLING RESPONSE (SAFE BUILD)
+    // SAFE BILLING RESPONSE
     // =========================
-
     return NextResponse.json({
       url: `${process.env.NEXT_PUBLIC_URL}/dashboard`,
     });
