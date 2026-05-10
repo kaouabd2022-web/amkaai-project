@@ -4,32 +4,12 @@ export async function GET() {
   const rip = process.env.BARIDIMOB_RIP;
   const usdt = process.env.USDT_TRC20_ADDRESS;
 
-  // ⚠️ تنبيه لو القيم غير موجودة
-  if (!rip || !usdt) {
-    console.warn("⚠️ Missing payment env variables");
-
-    return NextResponse.json(
-      {
-        rip: rip || "",
-        usdt: usdt || "",
-        warning: "Missing payment configuration",
-      },
-      {
-        status: 200,
-        headers: {
-          "Cache-Control": "no-store",
-        },
-      }
-    );
-  }
-
   return NextResponse.json(
     {
-      rip,
-      usdt,
+      rip: rip ?? "",
+      usdt: usdt ?? "",
     },
     {
-      status: 200,
       headers: {
         "Cache-Control": "no-store",
       },

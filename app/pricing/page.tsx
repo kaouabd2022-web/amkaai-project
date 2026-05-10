@@ -2,11 +2,38 @@
 
 import { useState, useEffect } from "react";
 
+const PLANS = {
+  pro: {
+    usd: 15,
+    usdt: 15,
+    dzd: 4500,
+    credits: 150,
+    color: "cyan",
+  },
+  premium: {
+    usd: 25,
+    usdt: 25,
+    dzd: 7500,
+    credits: 500,
+    color: "purple",
+  },
+};
+
 export default function PricingPage() {
-  const [selectedPlan, setSelectedPlan] = useState<"pro" | "premium" | null>(null);
-  const [paymentInfo, setPaymentInfo] = useState({ rip: "", usdt: "" });
-  const [method, setMethod] = useState<"USDT" | "BARIDIMOB" | null>(null);
-  const [copied, setCopied] = useState<"usdt" | "rip" | null>(null);
+  const [selectedPlan, setSelectedPlan] =
+    useState<"pro" | "premium" | null>(null);
+
+  const [paymentInfo, setPaymentInfo] = useState({
+    rip: "",
+    usdt: "",
+  });
+
+  const [method, setMethod] =
+    useState<"USDT" | "BARIDIMOB" | null>(null);
+
+  const [copied, setCopied] =
+    useState<"usdt" | "rip" | null>(null);
+
   const [uploading, setUploading] = useState(false);
   const [loadingCheckout, setLoadingCheckout] = useState(false);
 
@@ -18,23 +45,18 @@ export default function PricingPage() {
           rip: data?.rip || "YOUR_RIP_HERE",
           usdt: data?.usdt || "YOUR_USDT_ADDRESS",
         });
-      })
-      .catch(() => {
-        setPaymentInfo({
-          rip: "YOUR_RIP_HERE",
-          usdt: "YOUR_USDT_ADDRESS",
-        });
       });
   }, []);
 
   const copy = (text: string, type: "usdt" | "rip") => {
-    if (!text) return;
     navigator.clipboard.writeText(text);
     setCopied(type);
     setTimeout(() => setCopied(null), 2000);
   };
 
-  const goToCheckout = async (plan: "pro" | "premium") => {
+  const goToCheckout = async (
+    plan: "pro" | "premium"
+  ) => {
     try {
       setLoadingCheckout(true);
 
@@ -49,62 +71,63 @@ export default function PricingPage() {
       const data = await res.json();
 
       if (!data?.url) {
-        alert("❌ Checkout error"); // ✅ تم التعديل هنا فقط
+        alert("❌ Checkout failed");
         return;
       }
 
       window.location.href = data.url;
     } catch {
-      alert("❌ Checkout failed");
+      alert("❌ Checkout error");
     } finally {
       setLoadingCheckout(false);
     }
   };
 
-  const priceText =
-    selectedPlan === "pro"
-      ? "15 USD • 15 USDT • 4500 DZD"
-      : "25 USD • 25 USDT • 7500 DZD";
+  const planData =
+    selectedPlan ? PLANS[selectedPlan] : null;
 
   return (
     <main className="min-h-screen bg-black text-white flex flex-col items-center justify-center px-6">
 
-      <h1 className="text-5xl font-bold mb-4">Create AI Videos 🚀</h1>
-      <p className="text-gray-400 mb-12">No free plan. Real power starts here.</p>
+      <h1 className="text-5xl font-bold mb-4">
+        Create AI Videos 🚀
+      </h1>
 
+      <p className="text-gray-400 mb-12">
+        No free plan. Real power starts here.
+      </p>
+
+      {/* TRY */}
       <button
-        onClick={() => window.location.href = "/dashboard"}
-        className="mb-10 bg-white text-black px-6 py-3 rounded-xl font-bold hover:scale-105 transition"
+        onClick={() => (window.location.href = "/dashboard")}
+        className="mb-10 bg-white text-black px-6 py-3 rounded-xl font-bold"
       >
         🎬 Try 1 Free Video
       </button>
 
+      {/* PLANS */}
       <div className="grid md:grid-cols-2 gap-8 w-full max-w-4xl">
 
         <Card
           title="Pro"
-          highlight
           price="$15"
-          sub="15 USDT • 4500 DZD"
+          sub="150 credits"
+          highlight={false}
           onClick={() => setSelectedPlan("pro")}
-        >
-          <li>150 credits</li>
-          <li>Fast generation</li>
-        </Card>
+        />
 
         <Card
           title="Premium"
           price="$25"
-          sub="25 USDT • 7500 DZD"
+          sub="500 credits"
+          highlight={true}
           onClick={() => setSelectedPlan("premium")}
-        >
-          <li>500 credits</li>
-          <li>Ultra fast</li>
-        </Card>
+        />
 
       </div>
 
-      {selectedPlan && (
+      {/* MODAL */}
+      {selectedPlan && planData && (
         <Modal>
 
           <h2 className="text-xl font-bold text-center mb-2">
@@ -112,108 +135,48 @@ export default function PricingPage() {
           </h2>
 
           <p className="text-center text-gray-400 mb-6 text-sm">
-            {priceText}
+            {planData.usd} USD • {planData.usdt} USDT • {planData.dzd} DZD
           </p>
 
           <button
-            onClick={() => goToCheckout(selectedPlan)}
+            onClick={() =>
+              goToCheckout(selectedPlan)
+            }
             disabled={loadingCheckout}
             className="w-full bg-cyan-500 py-3 rounded-xl text-black font-bold mb-4"
           >
-            {loadingCheckout ? "Processing..." : "💳 Pay with Card"}
+            {loadingCheckout
+              ? "Processing..."
+              : "💳 Pay with Card"}
           </button>
 
-          {!method && (
-            <p className="text-xs text-yellow-400 text-center mb-2">
-              Select payment method 👇
-            </p>
-          )}
-
+          {/* PAYMENT METHODS */}
           <div className="grid grid-cols-2 gap-4">
 
             <PaymentBox
+              title="USDT"
+              value={paymentInfo.usdt}
               active={method === "USDT"}
               onClick={() => setMethod("USDT")}
-              title="USDT (TRC20)"
-              value={paymentInfo.usdt}
               copied={copied === "usdt"}
-              onCopy={(e: any) => {
-                e.stopPropagation();
-                copy(paymentInfo.usdt, "usdt");
-              }}
+              onCopy={() =>
+                copy(paymentInfo.usdt, "usdt")
+              }
               color="green"
             />
 
             <PaymentBox
-              active={method === "BARIDIMOB"}
-              onClick={() => setMethod("BARIDIMOB")}
               title="BaridiMob"
               value={paymentInfo.rip}
+              active={method === "BARIDIMOB"}
+              onClick={() => setMethod("BARIDIMOB")}
               copied={copied === "rip"}
-              onCopy={(e: any) => {
-                e.stopPropagation();
-                copy(paymentInfo.rip, "rip");
-              }}
+              onCopy={() =>
+                copy(paymentInfo.rip, "rip")
+              }
               color="blue"
             />
 
-          </div>
-
-          <div className="mt-4 bg-white/5 p-4 rounded-xl border border-white/10">
-            <p className="text-sm mb-2 text-center">
-              📸 Upload Screenshot
-            </p>
-
-            <input
-              type="file"
-              accept="image/*"
-              disabled={!method}
-              className="text-xs mb-3 w-full"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (!file || !method) return;
-
-                setUploading(true);
-
-                try {
-                  const formData = new FormData();
-                  formData.append("file", file);
-
-                  const uploadRes = await fetch("/api/upload", {
-                    method: "POST",
-                    body: formData,
-                  });
-
-                  const uploadData = await uploadRes.json();
-
-                  await fetch("/api/upload-payment", {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                      plan: selectedPlan.toUpperCase(),
-                      method,
-                      amount: selectedPlan === "pro" ? 15 : 25,
-                      screenshotUrl: uploadData.url,
-                    }),
-                  });
-
-                  window.location.href = "/billing/pending";
-
-                } catch {
-                  alert("❌ Upload failed");
-                }
-
-                setUploading(false);
-              }}
-            />
-
-            {uploading && (
-              <p className="text-xs text-yellow-400 text-center">
-                Uploading...
-              </p>
-            )}
           </div>
 
           <button
@@ -233,30 +196,63 @@ export default function PricingPage() {
   );
 }
 
-function PaymentBox({ active, onClick, title, value, copied, onCopy, color }: any) {
+/* CARD */
+function Card({
+  title,
+  price,
+  sub,
+  onClick,
+  highlight,
+}: any) {
   return (
     <div
       onClick={onClick}
-      className={`p-4 rounded-xl text-center cursor-pointer border ${
+      className={`p-8 rounded-2xl border cursor-pointer bg-white/5 ${
+        highlight
+          ? "border-purple-500"
+          : "border-white/10"
+      }`}
+    >
+      <h2 className="text-2xl font-bold">{title}</h2>
+      <p className="text-3xl font-bold">{price}</p>
+      <p className="text-gray-400">{sub}</p>
+
+      <button className="mt-4 w-full bg-white text-black py-3 rounded-xl">
+        Choose
+      </button>
+    </div>
+  );
+}
+
+/* PAYMENT BOX */
+function PaymentBox({
+  title,
+  value,
+  active,
+  onClick,
+  copied,
+  onCopy,
+  color,
+}: any) {
+  return (
+    <div
+      onClick={onClick}
+      className={`p-4 rounded-xl border cursor-pointer ${
         active
-          ? `border-${color}-500 bg-${color}-500/20`
+          ? "border-white bg-white/10"
           : "border-white/10"
       }`}
     >
       <p className="text-sm mb-2">{title}</p>
 
-      {value && (
-        <img
-          src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${value}`}
-          className="mx-auto mb-2"
-        />
-      )}
-
-      <p className="text-xs break-all mb-2">{value}</p>
+      <p className="text-xs break-all">{value}</p>
 
       <button
-        onClick={onCopy}
-        className="w-full bg-white/10 py-1 rounded text-xs"
+        onClick={(e) => {
+          e.stopPropagation();
+          onCopy();
+        }}
+        className="mt-2 w-full bg-white/10 py-1 text-xs rounded"
       >
         {copied ? "Copied ✔" : "Copy"}
       </button>
@@ -264,29 +260,10 @@ function PaymentBox({ active, onClick, title, value, copied, onCopy, color }: an
   );
 }
 
-function Card({ title, price, sub, children, onClick, highlight }: any) {
-  return (
-    <div className={`p-8 rounded-2xl border ${
-      highlight ? "border-cyan-500" : "border-white/10"
-    } bg-white/5`}>
-      <h2 className="text-2xl font-bold mb-4">{title}</h2>
-      <p className="text-3xl font-bold mb-2">{price}</p>
-      {sub && <p className="text-gray-400 text-sm mb-4">{sub}</p>}
-      <ul className="text-gray-300 space-y-2 mb-6">{children}</ul>
-
-      <button
-        onClick={onClick}
-        className="w-full bg-white text-black py-3 rounded-xl font-bold hover:scale-105 transition"
-      >
-        Choose
-      </button>
-    </div>
-  );
-}
-
+/* MODAL */
 function Modal({ children }: any) {
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center">
       <div className="bg-[#0f0f0f] p-8 rounded-2xl w-full max-w-md border border-white/10">
         {children}
       </div>
