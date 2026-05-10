@@ -7,16 +7,20 @@ if (!process.env.PADDLE_API_KEY) {
   throw new Error("Missing PADDLE_API_KEY");
 }
 
-const paddle = new Paddle(process.env.PADDLE_API_KEY);
+const paddle = new Paddle({
+  apiKey: process.env.PADDLE_API_KEY,
+});
 
 export async function POST(req: Request) {
   try {
-    const { userId } = await auth();
+    // 🔒 Clerk auth (FIXED)
+    const { userId } = auth();
 
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // 👤 get user
     const user = await db.user.findUnique({
       where: { clerkId: userId },
     });
@@ -28,8 +32,17 @@ export async function POST(req: Request) {
       );
     }
 
+    // 📦 body
     const { plan } = await req.json();
 
+    if (!plan) {
+      return NextResponse.json(
+        { error: "Missing plan" },
+        { status: 400 }
+      );
+    }
+
+    // 💳 price
     const priceId =
       plan === "premium"
         ? process.env.PADDLE_PREMIUM_KEY
@@ -42,33 +55,51 @@ export async function POST(req: Request) {
       );
     }
 
+    // 🚀 create transaction
     const transaction = await paddle.transactions.create({
-      items: [{ priceId, quantity: 1 }],
+      items: [
+        {
+          priceId,
+          quantity: 1,
+        },
+      ],
       customerId: user.customerId,
-      customData: { userId, plan },
+      customData: {
+        userId,
+        plan,
+      },
     });
 
-    const url = transaction?.checkout?.url;
+    // ⚡ FIX: safer checkout url extraction
+    const url =
+      (transaction as any)?.checkout?.url ||
+      (transaction as any)?.checkoutUrl;
 
     if (!url) {
       return NextResponse.json(
-        { error: "Checkout failed" },
+        { error: "Checkout URL not generated" },
         { status: 500 }
       );
     }
 
-    await db.abandonedCheckout.create({
-      data: {
-        userId,
-        email: user.email,
-        checkoutUrl: url,
-        transactionId: transaction.id,
-      },
-    });
+    // 💾 save abandoned checkout (safe)
+    try {
+      await db.abandonedCheckout.create({
+        data: {
+          userId,
+          email: user.email,
+          checkoutUrl: url,
+          transactionId: transaction.id,
+        },
+      });
+    } catch (err) {
+      console.log("Abandoned checkout ignored:", err);
+    }
 
     return NextResponse.json({ url });
-  } catch (e: any) {
-    console.error(e);
+  } catch (error: any) {
+    console.error("🔥 CHECKOUT ERROR:", error);
+
     return NextResponse.json(
       { error: "Server error" },
       { status: 500 }
