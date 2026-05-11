@@ -1,104 +1,76 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { Paddle } from "@paddle/paddle-node-sdk";
-
-if (!process.env.PADDLE_API_KEY) {
-  throw new Error("Missing PADDLE_API_KEY");
-}
-
-const paddle = new Paddle({
-  apiKey: process.env.PADDLE_API_KEY,
-});
 
 export async function POST(req: Request) {
   try {
-    // 🔒 Clerk auth (FIXED)
+    // 🔐 Auth
     const { userId } = auth();
 
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
     }
 
-    // 👤 get user
+    // 👤 user
     const user = await db.user.findUnique({
       where: { clerkId: userId },
     });
 
-    if (!user?.email || !user.customerId) {
+    if (!user?.email) {
       return NextResponse.json(
-        { error: "User not ready" },
-        { status: 400 }
+        { error: "User not found" },
+        { status: 404 }
       );
     }
 
     // 📦 body
-    const { plan } = await req.json();
+    const body = await req.json().catch(() => null);
 
-    if (!plan) {
+    if (!body?.plan) {
       return NextResponse.json(
-        { error: "Missing plan" },
+        { error: "Plan is required" },
         { status: 400 }
       );
     }
 
-    // 💳 price
-    const priceId =
+    const { plan } = body;
+
+    // 💳 Lemon Squeezy checkout URLs
+    const checkoutUrl =
       plan === "premium"
-        ? process.env.PADDLE_PREMIUM_KEY
-        : process.env.PADDLE_PRO_KEY;
+        ? process.env.LEMON_SQUEEZY_PREMIUM_URL
+        : process.env.LEMON_SQUEEZY_PRO_URL;
 
-    if (!priceId) {
+    if (!checkoutUrl) {
       return NextResponse.json(
-        { error: "Missing priceId" },
+        { error: "Missing checkout URL in env" },
         { status: 500 }
       );
     }
 
-    // 🚀 create transaction
-    const transaction = await paddle.transactions.create({
-      items: [
-        {
-          priceId,
-          quantity: 1,
-        },
-      ],
-      customerId: user.customerId,
-      customData: {
-        userId,
-        plan,
-      },
-    });
-
-    // ⚡ FIX: safer checkout url extraction
-    const url =
-      (transaction as any)?.checkout?.url ||
-      (transaction as any)?.checkoutUrl;
-
-    if (!url) {
-      return NextResponse.json(
-        { error: "Checkout URL not generated" },
-        { status: 500 }
-      );
-    }
-
-    // 💾 save abandoned checkout (safe)
-    try {
-      await db.abandonedCheckout.create({
+    // 💾 save abandoned checkout
+    db.abandonedCheckout
+      .create({
         data: {
           userId,
           email: user.email,
-          checkoutUrl: url,
-          transactionId: transaction.id,
+          checkoutUrl,
+          plan,
         },
+      })
+      .catch((err) => {
+        console.warn("Abandoned checkout error:", err);
       });
-    } catch (err) {
-      console.log("Abandoned checkout ignored:", err);
-    }
 
-    return NextResponse.json({ url });
-  } catch (error: any) {
-    console.error("🔥 CHECKOUT ERROR:", error);
+    // 🚀 return checkout link
+    return NextResponse.json({
+      url: checkoutUrl,
+    });
+  } catch (error) {
+    console.error("🔥 Checkout error:", error);
 
     return NextResponse.json(
       { error: "Server error" },

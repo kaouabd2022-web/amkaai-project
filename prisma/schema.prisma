@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "sqlite" // يمكنك تغييره لاحقًا إلى postgresql
   url      = env("DATABASE_URL")
 }
 
@@ -12,26 +12,35 @@ datasource db {
 //////////////////////////////////////////////////
 
 model User {
-  id             String   @id @default(cuid())
-  clerkId        String   @unique
-  email          String?  @unique
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  email     String?  @unique
 
-  plan           String   @default("free")
-  credits        Int      @default(10)
+  // 💳 Subscription state
+  plan      String   @default("free")
+  isPro     Boolean  @default(false)
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  // Lemon Squeezy IDs
+  lemonCustomerId     String?
+  lemonSubscriptionId String?
 
-  subscriptions  Subscription[]
-  payments       Payment[]
-  images         Image[]
-  videos         Video[]
-  videoJobs      VideoJob[]
-  voices         Voice[]
-  usage          Usage[]
-  abandonedCheckouts AbandonedCheckout[]
-  manualPayments ManualPayment[]
-  notifications  Notification[]
+  // Credits system
+  credits   Int      @default(10)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  subscriptions       Subscription[]
+  payments            Payment[]
+  images              Image[]
+  videos              Video[]
+  videoJobs           VideoJob[]
+  voices              Voice[]
+  usage               Usage[]
+  abandonedCheckouts  AbandonedCheckout[]
+  manualPayments      ManualPayment[]
+  notifications       Notification[]
 }
 
 //////////////////////////////////////////////////
@@ -39,25 +48,28 @@ model User {
 //////////////////////////////////////////////////
 
 model Subscription {
-  id                String   @id @default(cuid())
-  userId            String
+  id        String   @id @default(cuid())
+  userId    String
 
-  paddleId          String   @unique
-  status            String
-  plan              String
+  lemonSubscriptionId String? @unique
+  lemonCustomerId     String?
 
-  currentPeriodEnd  DateTime?
+  status    String
+  plan      String
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  currentPeriodEnd DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id])
 
   @@index([userId])
+  @@index([status])
 }
 
 //////////////////////////////////////////////////
-// 💳 PAYMENT
+// 💰 PAYMENT
 //////////////////////////////////////////////////
 
 model Payment {
@@ -67,7 +79,8 @@ model Payment {
   amount    Float
   currency  String
 
-  paddleId  String?  @unique
+  lemonOrderId String? @unique
+
   status    String   @default("completed")
 
   createdAt DateTime @default(now())
@@ -78,7 +91,7 @@ model Payment {
 }
 
 //////////////////////////////////////////////////
-// 📊 USAGE
+// 📊 USAGE TRACKING
 //////////////////////////////////////////////////
 
 model Usage {
@@ -93,6 +106,7 @@ model Usage {
   user User @relation(fields: [userId], references: [id])
 
   @@index([userId])
+  @@index([type])
 }
 
 //////////////////////////////////////////////////
@@ -122,10 +136,12 @@ model Video {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
+
+  @@index([status])
 }
 
 //////////////////////////////////////////////////
-// 🚀 VIDEO JOB
+// 🚀 VIDEO JOB QUEUE
 //////////////////////////////////////////////////
 
 model VideoJob {
@@ -173,7 +189,8 @@ model AbandonedCheckout {
   plan          String
   checkoutUrl   String
 
-  transactionId String?  @unique
+  // Lemon Squeezy order/checkout ref
+  orderId       String?  @unique
 
   recovered     Boolean  @default(false)
   step          String   @default("checkout_started")
@@ -206,7 +223,7 @@ model Notification {
 }
 
 //////////////////////////////////////////////////
-// 💳 MANUAL PAYMENT
+// 💳 MANUAL PAYMENT (Anti-Fraud Ready)
 //////////////////////////////////////////////////
 
 model ManualPayment {
@@ -229,9 +246,9 @@ model ManualPayment {
 
   aiScore       Float?
   aiRawText     String?
-  verified      Boolean   @default(false)
 
-  status        String   @default("PENDING")
+  verified      Boolean   @default(false)
+  status        String    @default("PENDING")
   riskLevel     String?
 
   approvedBy    String?
@@ -246,4 +263,14 @@ model ManualPayment {
   @@index([userId])
   @@index([status])
   @@index([createdAt])
+}
+
+//////////////////////////////////////////////////
+// 🔐 WEBHOOK IDEMPOTENCY (VERY IMPORTANT)
+//////////////////////////////////////////////////
+
+model WebhookEvent {
+  id        String   @id @default(cuid())
+  eventId   String   @unique
+  createdAt DateTime @default(now())
 }
