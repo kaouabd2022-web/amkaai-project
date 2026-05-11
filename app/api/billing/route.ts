@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 
-export async function POST() {
+export async function POST(req: Request) {
   try {
+    // 🔐 Clerk auth (correct for Next.js)
     const { userId } = await auth();
 
     if (!userId) {
@@ -13,6 +14,7 @@ export async function POST() {
       );
     }
 
+    // 👤 get user from DB
     const user = await db.user.findUnique({
       where: { clerkId: userId },
     });
@@ -24,7 +26,7 @@ export async function POST() {
       );
     }
 
-    // ✅ FIX: Lemon Squeezy field
+    // 💳 Lemon Squeezy check
     if (!user.lemonCustomerId) {
       return NextResponse.json(
         { error: "No Lemon Squeezy customer found" },
@@ -32,8 +34,26 @@ export async function POST() {
       );
     }
 
+    // 📦 safe body parsing (optional future use)
+    let body: any = {};
+    try {
+      body = await req.json();
+    } catch {
+      body = {};
+    }
+
+    const plan = body?.plan || "pro";
+
+    // 🌐 redirect or dashboard URL
+    const url =
+      plan === "premium"
+        ? `${process.env.NEXT_PUBLIC_URL}/dashboard?plan=premium`
+        : `${process.env.NEXT_PUBLIC_URL}/dashboard?plan=pro`;
+
     return NextResponse.json({
-      url: `${process.env.NEXT_PUBLIC_URL}/dashboard`,
+      url,
+      customerId: user.lemonCustomerId,
+      plan,
     });
 
   } catch (error) {
