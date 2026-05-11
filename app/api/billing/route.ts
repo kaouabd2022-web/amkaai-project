@@ -24,16 +24,14 @@ export async function POST() {
       );
     }
 
-    if (!user.customerId) {
+    // ✅ FIX: Lemon Squeezy field
+    if (!user.lemonCustomerId) {
       return NextResponse.json(
-        { error: "No Paddle customer found" },
+        { error: "No Lemon Squeezy customer found" },
         { status: 400 }
       );
     }
 
-    // =========================
-    // SAFE BILLING RESPONSE
-    // =========================
     return NextResponse.json({
       url: `${process.env.NEXT_PUBLIC_URL}/dashboard`,
     });

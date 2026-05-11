@@ -4,10 +4,14 @@ import { db } from "@/lib/db";
 
 export async function POST(req: Request) {
   try {
-    const { userId } = auth();
+    // ✅ FIX: await auth()
+    const { userId } = await auth();
 
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
     }
 
     const user = await db.user.findUnique({
@@ -15,7 +19,10 @@ export async function POST(req: Request) {
     });
 
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
     }
 
     // 📦 safe JSON parse
@@ -38,7 +45,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // 💳 env check (IMPORTANT)
     const proUrl = process.env.LEMON_SQUEEZY_PRO_URL;
     const premiumUrl = process.env.LEMON_SQUEEZY_PREMIUM_URL;
 
@@ -58,13 +64,12 @@ export async function POST(req: Request) {
         userId,
         email: user.email,
         checkoutUrl,
-        plan,
-      },
+        plan
+      }
     }).catch(console.warn);
 
-    // ✅ ALWAYS JSON RESPONSE
     return NextResponse.json({
-      url: checkoutUrl,
+      url: checkoutUrl
     });
 
   } catch (error) {
