@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 
-export async function POST(req: Request) {
+export async function POST() {
   try {
-    // 🔐 Clerk auth (correct for Next.js)
+    // ✅ FIX: لازم await
     const { userId } = await auth();
 
     if (!userId) {
@@ -14,19 +14,18 @@ export async function POST(req: Request) {
       );
     }
 
-    // 👤 get user from DB
     const user = await db.user.findUnique({
       where: { clerkId: userId },
     });
 
     if (!user) {
       return NextResponse.json(
-        { error: "User not found in database" },
+        { error: "User not found" },
         { status: 404 }
       );
     }
 
-    // 💳 Lemon Squeezy check
+    // ✅ FIX: Lemon Squeezy field
     if (!user.lemonCustomerId) {
       return NextResponse.json(
         { error: "No Lemon Squeezy customer found" },
@@ -34,26 +33,9 @@ export async function POST(req: Request) {
       );
     }
 
-    // 📦 safe body parsing (optional future use)
-    let body: any = {};
-    try {
-      body = await req.json();
-    } catch {
-      body = {};
-    }
-
-    const plan = body?.plan || "pro";
-
-    // 🌐 redirect or dashboard URL
-    const url =
-      plan === "premium"
-        ? `${process.env.NEXT_PUBLIC_URL}/dashboard?plan=premium`
-        : `${process.env.NEXT_PUBLIC_URL}/dashboard?plan=pro`;
-
+    // 🎯 redirect (يمكن تغيرها لاحقًا)
     return NextResponse.json({
-      url,
-      customerId: user.lemonCustomerId,
-      plan,
+      url: `${process.env.NEXT_PUBLIC_URL}/dashboard`,
     });
 
   } catch (error) {
