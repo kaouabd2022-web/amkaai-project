@@ -1,148 +1,137 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import crypto from "crypto";
 
-// =========================
-// VERIFY SIGNATURE
-// =========================
-function verifySignature(rawBody: string, signature: string | null) {
-  if (!signature || !process.env.LEMON_SQUEEZY_WEBHOOK_SECRET) return false;
+// 🎯 PLAN CONFIG
+const PLAN_CREDITS = {
+  pro: 120,
+  premium: 320,
+};
 
-  const digest = crypto
-    .createHmac("sha256", process.env.LEMON_SQUEEZY_WEBHOOK_SECRET)
-    .update(rawBody)
-    .digest("hex");
+// ⚠️ مهم: فقط events معينة
+const ALLOWED_EVENTS = [
+  "order_created",
+  "subscription_created",
+  "subscription_updated",
+];
 
-  return digest === signature;
-}
-
-// =========================
-// MAIN HANDLER
-// =========================
 export async function POST(req: Request) {
   try {
-    const rawBody = await req.text();
-    const signature = req.headers.get("x-signature");
+    const body = await req.json();
 
-    // 🔐 Verify request
-    if (!verifySignature(rawBody, signature)) {
-      console.error("❌ Invalid signature");
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    console.log("📩 Webhook received");
+
+    const eventName = body?.meta?.event_name;
+    const eventId = body?.meta?.event_id;
+
+    if (!eventName || !eventId) {
+      return NextResponse.json(
+        { error: "Invalid webhook payload" },
+        { status: 400 }
+      );
     }
 
-    const event = JSON.parse(rawBody);
+    // ❌ تجاهل events غير مهمة
+    if (!ALLOWED_EVENTS.includes(eventName)) {
+      return NextResponse.json({ ignored: true });
+    }
 
-    const eventName = event?.meta?.event_name;
-    const eventId = event?.meta?.event_id; // مهم لمنع التكرار
-    const data = event?.data?.attributes;
-
-    console.log("📩 Event:", eventName);
-
-    // =========================
-    // 🛑 IDEMPOTENCY CHECK
-    // =========================
-    const existing = await db.webhookEvent.findUnique({
+    // 🔒 IDMPOTENCY (منع التكرار)
+    const existingEvent = await db.webhookEvent.findUnique({
       where: { eventId },
     });
 
-    if (existing) {
-      console.log("⚠️ Duplicate event ignored:", eventId);
-      return NextResponse.json({ ok: true });
+    if (existingEvent) {
+      console.log("⚠️ Duplicate webhook ignored:", eventId);
+      return NextResponse.json({ duplicate: true });
     }
 
-    // خزّن الحدث
-    await db.webhookEvent.create({
-      data: { eventId },
+    // 👤 USER EMAIL
+    const email = body?.data?.attributes?.user_email;
+
+    if (!email) {
+      return NextResponse.json(
+        { error: "Missing user email" },
+        { status: 400 }
+      );
+    }
+
+    // 🔎 FIND USER
+    const user = await db.user.findUnique({
+      where: { email },
     });
 
-    // =========================
-    // 🎯 EXTRACT USER
-    // =========================
-    const userId = data?.custom_data?.userId;
-    const plan = data?.custom_data?.plan || "pro";
-
-    // =========================
-    // SWITCH EVENTS
-    // =========================
-    switch (eventName) {
-
-      // =========================
-      // 💳 PAYMENT SUCCESS
-      // =========================
-      case "order_created":
-      case "subscription_created": {
-        if (!userId) break;
-
-        await db.user.update({
-          where: { clerkId: userId },
-          data: {
-            isPro: true,
-            plan,
-            lemonCustomerId: data?.customer_id || null,
-            lemonSubscriptionId: data?.subscription_id || null,
-          },
-        });
-
-        console.log("✅ User upgraded:", userId);
-        break;
-      }
-
-      // =========================
-      // 🔄 SUBSCRIPTION UPDATE
-      // =========================
-      case "subscription_updated":
-      case "subscription_resumed": {
-        if (!userId) break;
-
-        await db.user.update({
-          where: { clerkId: userId },
-          data: {
-            isPro: data?.status === "active",
-          },
-        });
-
-        console.log("🔄 Subscription updated");
-        break;
-      }
-
-      // =========================
-      // ❌ CANCEL / EXPIRE
-      // =========================
-      case "subscription_cancelled":
-      case "subscription_expired": {
-        if (!userId) break;
-
-        await db.user.update({
-          where: { clerkId: userId },
-          data: {
-            isPro: false,
-            plan: "free",
-          },
-        });
-
-        console.log("❌ Subscription ended:", userId);
-        break;
-      }
-
-      // =========================
-      // ⚠️ PAYMENT FAILED
-      // =========================
-      case "subscription_payment_failed": {
-        console.log("⚠️ Payment failed");
-        break;
-      }
-
-      default:
-        console.log("ℹ️ Unhandled:", eventName);
+    if (!user) {
+      console.log("❌ User not found:", email);
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
     }
+
+    // 🎯 VARIANT → PLAN
+    const variantId = body?.data?.attributes?.variant_id;
+
+    const PRO_VARIANT_ID = process.env.LEMON_SQUEEZY_PRO_VARIANT_ID;
+    const PREMIUM_VARIANT_ID = process.env.LEMON_SQUEEZY_PREMIUM_VARIANT_ID;
+
+    let plan: "pro" | "premium" | null = null;
+
+    if (variantId == PRO_VARIANT_ID) plan = "pro";
+    if (variantId == PREMIUM_VARIANT_ID) plan = "premium";
+
+    if (!plan) {
+      console.log("⚠️ Unknown variant:", variantId);
+      return NextResponse.json(
+        { error: "Unknown plan" },
+        { status: 400 }
+      );
+    }
+
+    const credits = PLAN_CREDITS[plan];
+
+    // 📦 OPTIONAL: Lemon IDs
+    const lemonCustomerId =
+      body?.data?.attributes?.customer_id?.toString() || null;
+
+    const lemonSubscriptionId =
+      body?.data?.attributes?.subscription_id?.toString() || null;
+
+    // 💳 UPDATE USER (atomic)
+    await db.$transaction([
+      db.user.update({
+        where: { id: user.id },
+        data: {
+          plan,
+          isPro: true,
+          credits: credits, // ⚠️ replace or change to increment if needed
+          lemonCustomerId,
+          lemonSubscriptionId,
+        },
+      }),
+
+      // 🧾 SAVE EVENT (idempotency)
+      db.webhookEvent.create({
+        data: {
+          eventId,
+        },
+      }),
+    ]);
+
+    console.log(
+      `✅ ${email} upgraded → ${plan} (${credits} credits)`
+    );
 
     return NextResponse.json({ success: true });
 
-  } catch (error) {
-    console.error("🔥 Webhook error:", error);
+  } catch (error: any) {
+    console.error("🔥 WEBHOOK FATAL ERROR:", error);
 
     return NextResponse.json(
-      { error: "Webhook failed" },
+      {
+        error:
+          error?.message ||
+          "Internal webhook processing error",
+      },
       { status: 500 }
     );
   }

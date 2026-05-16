@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 const styles = [
   { name: "Cinematic", value: "cinematic lighting, dramatic" },
@@ -20,6 +20,19 @@ export default function AIVideoPage() {
   const [style, setStyle] = useState(styles[0].value);
   const [quality, setQuality] = useState("medium");
 
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const stopPolling = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => stopPolling(); // 🔥 cleanup عند الخروج
+  }, []);
+
   const formatTime = (sec: number) => {
     if (sec < 60) return `~${sec}s`;
     const m = Math.floor(sec / 60);
@@ -31,6 +44,8 @@ export default function AIVideoPage() {
     if (loading) return;
 
     try {
+      stopPolling();
+
       setLoading(true);
       setVideo(null);
       setStatus("Starting...");
@@ -53,62 +68,81 @@ export default function AIVideoPage() {
       }
 
       const data = await res.json();
+
+      if (!data?.jobId) {
+        throw new Error("No jobId returned");
+      }
+
       setJobId(data.jobId);
 
-      let done = false;
-      let fakeProgress = 10;
+      let attempts = 0;
+      const MAX_ATTEMPTS = 60;
 
-      while (!done) {
-        await new Promise((r) => setTimeout(r, 2000));
+      intervalRef.current = setInterval(async () => {
+        try {
+          attempts++;
 
-        fakeProgress += Math.random() * 6;
-        if (fakeProgress > 95) fakeProgress = 95;
-        setProgress(Math.floor(fakeProgress));
+          const check = await fetch("/api/video/status", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ jobId: data.jobId }),
+          });
 
-        const check = await fetch("/api/video/status", {
-          method: "POST",
-          headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({ jobId: data.jobId }),
-        });
+          const resData = await check.json();
 
-        const resData = await check.json();
+          // 🎯 progress ذكي
+          setProgress((prev) => {
+            const next = prev + Math.random() * 5;
+            return next > 95 ? 95 : next;
+          });
 
-        if (resData.position !== undefined) {
-          setPosition(resData.position);
+          if (resData.position !== undefined) {
+            setPosition(resData.position);
+          }
+
+          if (resData.estimatedTime !== undefined) {
+            setEstimatedTime(resData.estimatedTime);
+          }
+
+          if (resData.status === "pending") {
+            setStatus("Waiting in queue...");
+          }
+
+          if (resData.status === "processing") {
+            setStatus("Generating video...");
+            setPosition(null);
+          }
+
+          if (resData.status === "cancelled") {
+            stopPolling();
+            setStatus("Cancelled ❌");
+            setLoading(false);
+            setProgress(0);
+          }
+
+          if (resData.status === "done") {
+            stopPolling();
+            setVideo(resData.video);
+            setStatus("Done ✅");
+            setProgress(100);
+            setLoading(false);
+          }
+
+          // ⏱ timeout
+          if (attempts > MAX_ATTEMPTS) {
+            stopPolling();
+            setLoading(false);
+            setStatus("Timeout ⏳");
+          }
+
+        } catch (err) {
+          console.error(err);
         }
-
-        if (resData.estimatedTime !== undefined) {
-          setEstimatedTime(resData.estimatedTime);
-        }
-
-        if (resData.status === "pending") {
-          setStatus("Waiting in queue...");
-        }
-
-        if (resData.status === "processing") {
-          setStatus("Generating video...");
-          setPosition(null);
-        }
-
-        if (resData.status === "cancelled") {
-          setStatus("Cancelled ❌");
-          setLoading(false);
-          setProgress(0);
-          return;
-        }
-
-        if (resData.status === "done") {
-          setVideo(resData.video);
-          setStatus("Done ✅");
-          setProgress(100);
-          done = true;
-        }
-      }
+      }, 2000);
 
     } catch (err) {
       console.error(err);
       alert("Error generating video");
-    } finally {
       setLoading(false);
     }
   };
@@ -122,19 +156,10 @@ export default function AIVideoPage() {
       body: JSON.stringify({ jobId }),
     });
 
+    stopPolling();
     setStatus("Cancelled ❌");
     setLoading(false);
     setProgress(0);
-  };
-
-  const handleUpgrade = async () => {
-    setStatus("Upgrading... 🚀");
-
-    await fetch("/api/upgrade", {
-      method: "POST",
-    });
-
-    setStatus("Priority activated ⚡");
   };
 
   return (
@@ -169,18 +194,15 @@ export default function AIVideoPage() {
       </div>
 
       {/* QUALITY */}
-      <div className="mb-6">
-        <p className="mb-2 text-gray-400">Quality</p>
-        <select
-          value={quality}
-          onChange={(e) => setQuality(e.target.value)}
-          className="bg-gray-900 p-3 rounded-xl"
-        >
-          <option value="low">Low</option>
-          <option value="medium">Medium</option>
-          <option value="high">High</option>
-        </select>
-      </div>
+      <select
+        value={quality}
+        onChange={(e) => setQuality(e.target.value)}
+        className="bg-gray-900 p-3 rounded-xl mb-6"
+      >
+        <option value="low">Low</option>
+        <option value="medium">Medium</option>
+        <option value="high">High</option>
+      </select>
 
       {/* BUTTONS */}
       <div className="flex gap-4">
@@ -202,25 +224,11 @@ export default function AIVideoPage() {
         )}
       </div>
 
-      {/* QUEUE + UPGRADE */}
+      {/* QUEUE */}
       {position !== null && (
-        <div className="mt-6 bg-yellow-500/10 border border-yellow-500/30 p-4 rounded-xl max-w-xl">
-          <p className="text-yellow-400 mb-1">
-            ⏳ Position: {position}
-          </p>
-
-          {estimatedTime !== null && (
-            <p className="text-gray-300">
-              Estimated wait: {formatTime(estimatedTime)}
-            </p>
-          )}
-
-          <button
-            onClick={handleUpgrade}
-            className="mt-3 bg-cyan-500 text-black px-4 py-2 rounded-lg font-semibold"
-          >
-            🚀 Upgrade & Skip Queue
-          </button>
+        <div className="mt-6 text-yellow-400">
+          ⏳ Position: {position}
+          {estimatedTime && ` • ${formatTime(estimatedTime)}`}
         </div>
       )}
 
@@ -229,7 +237,7 @@ export default function AIVideoPage() {
         <div className="mt-6 max-w-xl">
           <div className="flex justify-between text-sm text-gray-400 mb-1">
             <span>{status}</span>
-            <span>{progress}%</span>
+            <span>{Math.floor(progress)}%</span>
           </div>
 
           <div className="w-full bg-gray-800 h-3 rounded-full overflow-hidden">
@@ -247,14 +255,6 @@ export default function AIVideoPage() {
           <video controls className="w-full rounded-xl mb-4">
             <source src={video} type="video/mp4" />
           </video>
-
-          <a
-            href={video}
-            download
-            className="bg-white text-black px-4 py-2 rounded"
-          >
-            Download
-          </a>
         </div>
       )}
     </div>

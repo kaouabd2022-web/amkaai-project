@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 
 export async function POST(req: Request) {
   try {
-    // ✅ FIX: await auth()
+    // 🔐 AUTH
     const { userId } = await auth();
 
     if (!userId) {
@@ -14,19 +14,20 @@ export async function POST(req: Request) {
       );
     }
 
+    // 👤 GET USER FROM DB
     const user = await db.user.findUnique({
       where: { clerkId: userId },
     });
 
     if (!user) {
       return NextResponse.json(
-        { error: "User not found" },
+        { error: "User not found in database" },
         { status: 404 }
       );
     }
 
-    // 📦 safe JSON parse
-    let body;
+    // 📦 SAFE BODY PARSE
+    let body: any;
     try {
       body = await req.json();
     } catch {
@@ -38,45 +39,56 @@ export async function POST(req: Request) {
 
     const { plan } = body;
 
-    if (!plan) {
+    // 🎯 VALIDATION
+    if (!plan || !["pro", "premium"].includes(plan)) {
       return NextResponse.json(
-        { error: "Plan is required" },
+        { error: "Invalid plan selected" },
         { status: 400 }
       );
     }
 
+    // 🔗 ENV CHECK
     const proUrl = process.env.LEMON_SQUEEZY_PRO_URL;
     const premiumUrl = process.env.LEMON_SQUEEZY_PREMIUM_URL;
 
     if (!proUrl || !premiumUrl) {
+      console.error("❌ Missing Lemon Squeezy URLs");
       return NextResponse.json(
-        { error: "Missing checkout URLs in env" },
+        { error: "Server misconfigured (missing checkout URLs)" },
         { status: 500 }
       );
     }
 
+    // 🎯 SELECT URL
     const checkoutUrl =
       plan === "premium" ? premiumUrl : proUrl;
 
-    // 💾 save (non-blocking)
+    // 💾 SAVE ABANDONED CHECKOUT (NON-BLOCKING)
     db.abandonedCheckout.create({
       data: {
-        userId,
+        userId: user.id, // ✅ FIX مهم
         email: user.email,
         checkoutUrl,
-        plan
-      }
-    }).catch(console.warn);
-
-    return NextResponse.json({
-      url: checkoutUrl
+        plan,
+      },
+    }).catch((err) => {
+      console.warn("⚠️ Abandoned checkout save failed:", err);
     });
 
-  } catch (error) {
-    console.error("🔥 Checkout error:", error);
+    // 🚀 RESPONSE
+    return NextResponse.json({
+      url: checkoutUrl,
+    });
+
+  } catch (error: any) {
+    console.error("🔥 CHECKOUT FATAL ERROR:", error);
 
     return NextResponse.json(
-      { error: "Server error" },
+      {
+        error:
+          error?.message ||
+          "Internal server error during checkout",
+      },
       { status: 500 }
     );
   }
